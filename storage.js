@@ -9,6 +9,7 @@ const BLOCKS_FILE = path.join(DATA_DIR, 'blocks.json');
 const REQUESTS_FILE = path.join(DATA_DIR, 'requests.json');
 const CONFIG_FILE = path.join(DATA_DIR, 'config.json');
 const ARCHIVE_FILE = path.join(DATA_DIR, 'archive.json');
+const STUDENTS_FILE = path.join(DATA_DIR, 'students.json');
 const BACKUPS_DIR = path.join(DATA_DIR, 'backups');
 
 const DEFAULT_CONFIG = {
@@ -28,6 +29,7 @@ const DEFAULT_CONFIG = {
 let memoryStore = {
   blocks: [],
   requests: [],
+  students: [],
   config: DEFAULT_CONFIG,
   archive: { deletedBlocks: [], deletedRequests: [], cancelledRequests: [] }
 };
@@ -87,6 +89,9 @@ const storage = {
     const localRequests = readJSON(REQUESTS_FILE);
     memoryStore.requests = localRequests && Array.isArray(localRequests.requests) ? localRequests.requests : [];
 
+    const localStudents = readJSON(STUDENTS_FILE);
+    memoryStore.students = localStudents && Array.isArray(localStudents.students) ? localStudents.students : [];
+
     const localConfig = readJSON(CONFIG_FILE);
     memoryStore.config = localConfig && localConfig.schedule ? localConfig : DEFAULT_CONFIG;
 
@@ -96,6 +101,7 @@ const storage = {
     // Save defaults if files don't exist
     if (!fs.existsSync(BLOCKS_FILE)) writeJSONAtomic(BLOCKS_FILE, { blocks: memoryStore.blocks });
     if (!fs.existsSync(REQUESTS_FILE)) writeJSONAtomic(REQUESTS_FILE, { requests: memoryStore.requests });
+    if (!fs.existsSync(STUDENTS_FILE)) writeJSONAtomic(STUDENTS_FILE, { students: memoryStore.students });
     if (!fs.existsSync(CONFIG_FILE)) writeJSONAtomic(CONFIG_FILE, memoryStore.config);
     if (!fs.existsSync(ARCHIVE_FILE)) writeJSONAtomic(ARCHIVE_FILE, memoryStore.archive);
 
@@ -117,9 +123,10 @@ const storage = {
         console.log('✅ [MongoDB Atlas] Baglanti basarili! Verileriniz bulutta kalici olarak korunuyor.');
 
         // Hydrate from MongoDB or Migrate local data to MongoDB if empty
-        const [mBlocks, mRequests, mConfig, mArchive] = await Promise.all([
+        const [mBlocks, mRequests, mStudents, mConfig, mArchive] = await Promise.all([
           mongoCol.findOne({ _id: 'blocks' }),
           mongoCol.findOne({ _id: 'requests' }),
+          mongoCol.findOne({ _id: 'students' }),
           mongoCol.findOne({ _id: 'config' }),
           mongoCol.findOne({ _id: 'archive' })
         ]);
@@ -136,6 +143,13 @@ const storage = {
           writeJSONAtomic(REQUESTS_FILE, { requests: memoryStore.requests });
         } else if (memoryStore.requests.length > 0) {
           syncToMongo('requests', memoryStore.requests);
+        }
+
+        if (mStudents && Array.isArray(mStudents.data)) {
+          memoryStore.students = mStudents.data;
+          writeJSONAtomic(STUDENTS_FILE, { students: memoryStore.students });
+        } else if (memoryStore.students.length > 0) {
+          syncToMongo('students', memoryStore.students);
         }
 
         if (mConfig && mConfig.data && mConfig.data.schedule) {
@@ -160,9 +174,61 @@ const storage = {
       console.log('📁 [Yerel Depolama]: MONGODB_URI tanimli degil, veriler yerel diskte (data/) saklaniyor.');
     }
 
+    // Auto-seed students from blocks and requests if empty
+    this.autoSeedStudents();
+
     // 4. Create initial snapshot and schedule recurring snapshot
     this.createDailySnapshot();
     setInterval(() => this.createDailySnapshot(), 1000 * 60 * 60 * 12);
+  },
+
+  autoSeedStudents() {
+    if (memoryStore.students && memoryStore.students.length > 0) return;
+    const studentMap = {};
+
+    // Check requests for student names and phone numbers
+    (memoryStore.requests || []).forEach(r => {
+      const name = `${r.firstName || ''} ${r.lastName || ''}`.trim();
+      const code = (r.studentCode || '').trim().toUpperCase();
+      const phone = (r.phone || '').trim();
+      const key = code || name;
+      if (key && !studentMap[key]) {
+        studentMap[key] = {
+          id: Date.now().toString(36) + Math.random().toString(36).substring(2, 6),
+          name: name || code,
+          code: code,
+          grade: '—',
+          parentName: name ? `Sayın Veli (${name})` : '—',
+          phone: phone,
+          notes: '',
+          createdAt: new Date().toISOString()
+        };
+      }
+    });
+
+    // Check blocks
+    (memoryStore.blocks || []).forEach(b => {
+      const name = (b.label || '').trim();
+      const code = (b.studentCode || '').trim().toUpperCase();
+      const key = code || name;
+      if (key && !studentMap[key]) {
+        studentMap[key] = {
+          id: Date.now().toString(36) + Math.random().toString(36).substring(2, 6),
+          name: name || code,
+          code: code,
+          grade: '—',
+          parentName: '—',
+          phone: '',
+          notes: '',
+          createdAt: new Date().toISOString()
+        };
+      }
+    });
+
+    const list = Object.values(studentMap);
+    if (list.length > 0) {
+      this.setStudents(list);
+    }
   },
 
   getBlocks() {
@@ -183,6 +249,43 @@ const storage = {
     memoryStore.requests = Array.isArray(requests) ? requests : [];
     writeJSONAtomic(REQUESTS_FILE, { requests: memoryStore.requests });
     syncToMongo('requests', memoryStore.requests);
+  },
+
+  getStudents() {
+    return memoryStore.students || [];
+  },
+
+  setStudents(students) {
+    memoryStore.students = Array.isArray(students) ? students : [];
+    writeJSONAtomic(STUDENTS_FILE, { students: memoryStore.students });
+    syncToMongo('students', memoryStore.students);
+  },
+
+  upsertStudent(studentData) {
+    const list = [...(memoryStore.students || [])];
+    const index = list.findIndex(s => 
+      (studentData.id && s.id === studentData.id) ||
+      (studentData.code && s.code && s.code.toUpperCase() === studentData.code.toUpperCase()) ||
+      (studentData.name && s.name && s.name.toLowerCase() === studentData.name.toLowerCase())
+    );
+
+    if (index >= 0) {
+      list[index] = { ...list[index], ...studentData, updatedAt: new Date().toISOString() };
+    } else {
+      const newStudent = {
+        id: Date.now().toString(36) + crypto.randomBytes(3).toString('hex'),
+        name: studentData.name || '',
+        code: (studentData.code || '').toUpperCase(),
+        grade: studentData.grade || '—',
+        parentName: studentData.parentName || '—',
+        phone: studentData.phone || '',
+        notes: studentData.notes || '',
+        createdAt: new Date().toISOString()
+      };
+      list.push(newStudent);
+    }
+    this.setStudents(list);
+    return list;
   },
 
   getConfig() {
@@ -237,10 +340,12 @@ const storage = {
         isCloudConnected: isMongoConnected,
         stats: {
           blocksCount: memoryStore.blocks.length,
-          requestsCount: memoryStore.requests.length
+          requestsCount: memoryStore.requests.length,
+          studentsCount: (memoryStore.students || []).length
         },
         blocks: memoryStore.blocks,
         requests: memoryStore.requests,
+        students: memoryStore.students,
         config: memoryStore.config,
         archive: memoryStore.archive
       };
@@ -269,7 +374,8 @@ const storage = {
       isCloud: isMongoConnected,
       engine: isMongoConnected ? 'MongoDB Atlas (Bulut Veritabanı — Asla Sıfırlanmaz)' : 'Yerel Disk (Atomik JSON)',
       backupFolder: BACKUPS_DIR,
-      hasMongoUri: !!process.env.MONGODB_URI
+      hasMongoUri: !!process.env.MONGODB_URI,
+      studentsCount: (memoryStore.students || []).length
     };
   }
 };

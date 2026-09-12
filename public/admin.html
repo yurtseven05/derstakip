@@ -87,6 +87,7 @@
           <div class="legend-item"><div class="legend-dot requested"></div><span>Onay Bekliyor</span></div>
         </div>
 
+        <div class="mobile-scroll-hint">👈 Günleri görmek için sağa-sola kaydırabilirsiniz 👉</div>
         <div class="calendar-wrapper" id="calendarWrapper"></div>
       </section>
 
@@ -118,6 +119,23 @@
         <p class="hint-text">Aylık ders sayısı, toplam saat ve öğrenci bazlı istatistikler.</p>
         <div id="analyticsContent">
           <div class="empty-state"><div class="empty-icon">📊</div><p>Yükleniyor...</p></div>
+        </div>
+
+        <!-- Öğrencilerim & Veli Rehberi (Doğrudan Analiz Sayfasında) -->
+        <div class="section-header" style="margin-top: 40px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+          <div>
+            <h2>👥 Öğrencilerim & Veli Rehberi</h2>
+            <p class="hint-text" style="margin: 4px 0 0 0;">Öğrenci adı, sınıfı, veli adı, telefon ve takip kodları. Buradaki öğrenciler takvimde ders eklerken otomatik tamamlanır.</p>
+          </div>
+          <button class="btn btn-primary btn-sm" id="openAddStudentBtn" style="white-space: nowrap;">+ Yeni Öğrenci Ekle</button>
+        </div>
+
+        <div style="margin: 16px 0 20px 0; display: flex; gap: 10px;">
+          <input type="text" id="studentSearchInput" placeholder="🔍 Öğrenci adı, veli veya kod ile filtrele..." style="max-width: 400px; padding: 10px 14px; border: 1px solid var(--border-glass); border-radius: var(--radius-md); background: var(--bg-card); color: var(--text-primary); font-size: 0.9rem; width: 100%;">
+        </div>
+
+        <div id="studentsDirectoryList">
+          <div class="empty-state"><div class="empty-icon">👥</div><p>Öğrenci listesi yükleniyor...</p></div>
         </div>
       </section>
     </div>
@@ -234,11 +252,11 @@
         </div>
         <div class="form-group">
           <label for="bmLabel">👤 Öğrenci Adı Soyadı <small style="color:var(--text-secondary);font-weight:400;">(Sadece siz görürsünüz, gizlidir)</small></label>
-          <input type="text" id="bmLabel" placeholder="Örn: Ahmet Yılmaz">
+          <input type="text" id="bmLabel" placeholder="Örn: Ahmet Yılmaz" list="studentNamesList" autocomplete="off">
         </div>
         <div class="form-group">
           <label for="bmCode">🏷️ Takvim Etiketi / Öğrenci Kodu <small style="color:var(--text-secondary);font-weight:400;">(Öğrenci takviminde "Dolu [Etiket]" görünür)</small></label>
-          <input type="text" id="bmCode" placeholder="Örn: Z4, 115, AY (Boşsa sadece Dolu yazar)" style="text-transform: uppercase;">
+          <input type="text" id="bmCode" placeholder="Örn: Z4, 115, AY (Boşsa sadece Dolu yazar)" style="text-transform: uppercase;" list="studentCodesList" autocomplete="off">
         </div>
         <button type="submit" class="btn btn-primary">Dersi Kaydet ve Kapat</button>
       </form>
@@ -290,13 +308,59 @@
         </div>
         <div class="form-group">
           <label for="rcLabel">👤 Öğrenci Adı Soyadı <small style="color:var(--text-secondary);font-weight:400;">(Sadece siz görürsünüz, gizlidir)</small></label>
-          <input type="text" id="rcLabel" placeholder="Örn: Ahmet Yılmaz">
+          <input type="text" id="rcLabel" placeholder="Örn: Ahmet Yılmaz" list="studentNamesList" autocomplete="off">
         </div>
         <div class="form-group">
           <label for="rcCode">🏷️ Takvim Etiketi / Öğrenci Kodu <small style="color:var(--text-secondary);font-weight:400;">(Öğrenci takviminde "Dolu [Etiket]" görünür)</small></label>
-          <input type="text" id="rcCode" placeholder="Örn: Z4, 115, AY (Boşsa sadece Dolu yazar)" style="text-transform: uppercase;">
+          <input type="text" id="rcCode" placeholder="Örn: Z4, 115, AY (Boşsa sadece Dolu yazar)" style="text-transform: uppercase;" list="studentCodesList" autocomplete="off">
         </div>
         <button type="submit" class="btn btn-primary">Taahhütlü Dersi Oluştur</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Global Autocomplete Datalists -->
+  <datalist id="studentCodesList"></datalist>
+  <datalist id="studentNamesList"></datalist>
+
+  <!-- Student Add / Edit Modal -->
+  <div class="modal-overlay" id="studentModal">
+    <div class="modal" style="max-width: 500px;">
+      <div class="modal-header">
+        <h3 id="studentModalTitle">👤 Öğrenci Ekle / Düzenle</h3>
+        <button class="modal-close" onclick="closeStudentModal()">✕</button>
+      </div>
+      <form id="studentForm">
+        <input type="hidden" id="stEditId">
+        <div class="form-group">
+          <label for="stName">👤 Öğrenci Adı Soyadı *</label>
+          <input type="text" id="stName" placeholder="Örn: Zeynep Kaya" required>
+        </div>
+        <div class="form-group">
+          <label for="stCode">🏷️ Takvim Etiketi / Takip Kodu *</label>
+          <input type="text" id="stCode" placeholder="Örn: Z4, 105, AY" style="text-transform: uppercase;" required>
+          <small style="color:var(--text-muted);font-size:0.75rem;margin-top:2px;display:block;">Takvimde ders eklerken bu kodu girdiğinizde öğrenci adı otomatik yazılacaktır.</small>
+        </div>
+        <div class="form-group">
+          <label for="stGrade">🎓 Sınıf / Seviye</label>
+          <input type="text" id="stGrade" placeholder="Örn: 8. Sınıf (LGS), 12. Sınıf (YKS), 7. Sınıf">
+        </div>
+        <div class="form-group">
+          <label for="stParentName">👨‍👩‍👧 Veli İsim Soyisim</label>
+          <input type="text" id="stParentName" placeholder="Örn: Fatma Kaya (Anne) veya Mehmet Bey">
+        </div>
+        <div class="form-group">
+          <label for="stPhone">📞 Veli Telefon Numarası</label>
+          <input type="tel" id="stPhone" placeholder="Örn: 5XX XXX XX XX" maxlength="14">
+        </div>
+        <div class="form-group">
+          <label for="stNotes">📝 Notlar / Ek Bilgiler</label>
+          <input type="text" id="stNotes" placeholder="Örn: Salı günleri 18:00 tercih ediyor">
+        </div>
+        <div style="display:flex; gap:10px; margin-top:20px;">
+          <button type="button" class="btn btn-secondary" onclick="closeStudentModal()" style="flex:1;">İptal</button>
+          <button type="submit" class="btn btn-primary" style="flex:2;">Kaydet</button>
+        </div>
       </form>
     </div>
   </div>

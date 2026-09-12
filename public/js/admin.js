@@ -67,8 +67,8 @@ document.addEventListener('DOMContentLoaded', () => {
 async function initDashboard() {
   document.getElementById('loginScreen').style.display='none';
   document.getElementById('adminDashboard').classList.add('active');
-  await loadConfig(); await loadBlocks(); await loadRequests();
-  setupListeners(); render(); stats();
+  await loadConfig(); await loadBlocks(); await loadRequests(); await loadStudents();
+  setupListeners(); setupStudentAutofill(); render(); stats();
   setInterval(async()=>{await loadBlocks();await loadRequests();render();stats();},15000);
 }
 
@@ -86,6 +86,67 @@ async function loadBlocks() {
 }
 async function loadRequests() {
   try { const r=await fetch(`${API}/api/requests`,{headers:{'X-Admin-Password':adminPassword}}); const d=await r.json(); requests=d.requests||[]; renderRequests(); } catch(e) {}
+}
+
+let savedStudents = [];
+
+async function loadStudents() {
+  try {
+    const r = await fetch(`${API}/api/admin/students`, {
+      headers: { 'X-Admin-Password': adminPassword }
+    });
+    if (r.ok) {
+      const d = await r.json();
+      savedStudents = d.students || [];
+      updateStudentDatalists();
+      renderStudentsDirectory();
+    }
+  } catch(e) {}
+}
+
+function updateStudentDatalists() {
+  const codesDl = document.getElementById('studentCodesList');
+  const namesDl = document.getElementById('studentNamesList');
+  if (!codesDl || !namesDl) return;
+
+  codesDl.innerHTML = savedStudents
+    .filter(s => s.code)
+    .map(s => `<option value="${esc(s.code)}">${esc(s.name || s.code)}</option>`)
+    .join('');
+
+  namesDl.innerHTML = savedStudents
+    .filter(s => s.name)
+    .map(s => `<option value="${esc(s.name)}">${s.code ? '[' + esc(s.code) + ']' : ''}</option>`)
+    .join('');
+}
+
+function setupStudentAutofill() {
+  const pairs = [
+    { codeEl: document.getElementById('bmCode'), nameEl: document.getElementById('bmLabel') },
+    { codeEl: document.getElementById('rcCode'), nameEl: document.getElementById('rcLabel') }
+  ];
+
+  pairs.forEach(({ codeEl, nameEl }) => {
+    if (!codeEl || !nameEl) return;
+
+    codeEl.addEventListener('input', () => {
+      const val = codeEl.value.trim().toUpperCase();
+      if (!val) return;
+      const found = savedStudents.find(s => s.code && s.code.toUpperCase() === val);
+      if (found && found.name) {
+        nameEl.value = found.name;
+      }
+    });
+
+    nameEl.addEventListener('input', () => {
+      const val = nameEl.value.trim().toLowerCase();
+      if (!val) return;
+      const found = savedStudents.find(s => s.name && s.name.toLowerCase() === val);
+      if (found && found.code && !codeEl.value.trim()) {
+        codeEl.value = found.code;
+      }
+    });
+  });
 }
 
 async function createBlock(date, startTime, endTime, label, studentCode) {
@@ -378,10 +439,24 @@ function setupListeners() {
     tab.classList.add('active');
     document.querySelectorAll('.admin-panel').forEach(p=>p.classList.remove('active'));
     document.getElementById(tab.dataset.panel).classList.add('active');
-    if(tab.dataset.panel==='analyticsPanel') loadAnalytics();
+    if(tab.dataset.panel==='analyticsPanel') { loadAnalytics(); renderStudentsDirectory(); }
     if(tab.dataset.panel==='recurringPanel') loadRecurringGroups();
     if(tab.dataset.panel==='backupPanel') loadBackupPanel();
   }));
+
+  // Student directory listeners
+  const addStBtn = document.getElementById('openAddStudentBtn');
+  if(addStBtn) addStBtn.addEventListener('click', openAddStudentModal);
+
+  const searchStInput = document.getElementById('studentSearchInput');
+  if(searchStInput) {
+    searchStInput.addEventListener('input', e => renderStudentsDirectory(e.target.value));
+  }
+
+  const stForm = document.getElementById('studentForm');
+  if(stForm) {
+    stForm.addEventListener('submit', handleStudentFormSubmit);
+  }
 
   document.querySelectorAll('.view-toggle button').forEach(b => b.addEventListener('click',()=>{
     document.querySelectorAll('.view-toggle button').forEach(x=>x.classList.remove('active'));
@@ -928,6 +1003,189 @@ async function restoreArchivedBlock(id) {
   }
 }
 
+// ---- Students Directory (Öğrencilerim & Veli Rehberi) ----
+function renderStudentsDirectory(filterQuery = '') {
+  const container = document.getElementById('studentsDirectoryList');
+  if (!container) return;
+
+  let list = [...savedStudents];
+  if (filterQuery) {
+    const q = filterQuery.toLowerCase().trim();
+    list = list.filter(s => 
+      (s.name && s.name.toLowerCase().includes(q)) ||
+      (s.code && s.code.toLowerCase().includes(q)) ||
+      (s.parentName && s.parentName.toLowerCase().includes(q)) ||
+      (s.phone && s.phone.includes(q)) ||
+      (s.grade && s.grade.toLowerCase().includes(q))
+    );
+  }
+
+  if (!list.length) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">👥</div><p>${filterQuery ? 'Aramanızla eşleşen öğrenci bulunamadı.' : 'Henüz kayıtlı öğrenci yok. "+ Yeni Öğrenci Ekle" butonuna basarak ilk öğrencinizi ekleyebilirsiniz.'}</p></div>`;
+    return;
+  }
+
+  // Calculate lesson stats per student from blocks
+  const studentStats = {};
+  blocks.forEach(b => {
+    const code = (b.studentCode || '').trim().toUpperCase();
+    const name = (b.label || '').trim().toLowerCase();
+    const dur = (toMin(b.endTime) - toMin(b.startTime)) / 60;
+    if (code) {
+      if (!studentStats[code]) studentStats[code] = { count: 0, hours: 0 };
+      studentStats[code].count++;
+      studentStats[code].hours += dur;
+    }
+    if (name) {
+      if (!studentStats[name]) studentStats[name] = { count: 0, hours: 0 };
+      studentStats[name].count++;
+      studentStats[name].hours += dur;
+    }
+  });
+
+  let h = `<div class="analytics-table"><table>
+    <thead>
+      <tr>
+        <th>Kod / Etiket</th>
+        <th>Öğrenci Adı Soyadı</th>
+        <th>Sınıf / Düzey</th>
+        <th>Veli İsim Soyisim</th>
+        <th>İletişim & Hızlı İşlem</th>
+        <th>Toplam Ders</th>
+        <th style="text-align:right;">İşlem</th>
+      </tr>
+    </thead>
+    <tbody>`;
+
+  list.forEach(s => {
+    const stats = (s.code && studentStats[s.code.toUpperCase()]) || 
+                  (s.name && studentStats[s.name.toLowerCase()]) || 
+                  { count: 0, hours: 0 };
+    
+    const codeBadge = s.code ? `<span style="background:var(--accent-primary);color:#fff;padding:3px 8px;border-radius:6px;font-weight:800;font-size:0.82rem;">${esc(s.code)}</span>` : '<span style="color:var(--text-muted)">—</span>';
+    
+    const cleanPhone = (s.phone || '').replace(/\D/g, '');
+    let phoneActions = '<span style="color:var(--text-muted)">—</span>';
+    if (cleanPhone) {
+      const waNumber = cleanPhone.startsWith('90') ? cleanPhone : (cleanPhone.startsWith('0') ? '9' + cleanPhone : '90' + cleanPhone);
+      phoneActions = `
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+          <strong>0${cleanPhone.slice(-10)}</strong>
+          <a href="https://wa.me/${waNumber}" target="_blank" class="student-action-btn wa" title="WhatsApp Mesajı Gönder">💬 WA</a>
+          <a href="tel:${cleanPhone}" class="student-action-btn call" title="Telefonla Ara">📞 Ara</a>
+        </div>
+      `;
+    }
+
+    h += `<tr>
+      <td>${codeBadge}</td>
+      <td><strong>${esc(s.name || 'İsimsiz')}</strong></td>
+      <td>${esc(s.grade || '—')}</td>
+      <td>${esc(s.parentName || '—')}</td>
+      <td>${phoneActions}</td>
+      <td><strong>${Math.round(stats.hours * 10) / 10} saat</strong> <small style="color:var(--text-muted)">(${stats.count} ders)</small></td>
+      <td style="text-align:right; white-space:nowrap;">
+        <button class="student-action-btn edit" onclick="openEditStudentModal('${s.id}')">✏️ Düzenle</button>
+        <button class="student-action-btn delete" onclick="deleteStudent('${s.id}')">🗑️ Sil</button>
+      </td>
+    </tr>`;
+  });
+
+  h += '</tbody></table></div>';
+  container.innerHTML = h;
+}
+
+function openAddStudentModal() {
+  document.getElementById('studentModalTitle').textContent = '➕ Yeni Öğrenci Ekle';
+  document.getElementById('stEditId').value = '';
+  document.getElementById('studentForm').reset();
+  document.getElementById('studentModal').classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+
+function openEditStudentModal(id) {
+  const student = savedStudents.find(s => s.id === id);
+  if (!student) return;
+  document.getElementById('studentModalTitle').textContent = '✏️ Öğrenci Bilgilerini Düzenle';
+  document.getElementById('stEditId').value = student.id;
+  document.getElementById('stName').value = student.name || '';
+  document.getElementById('stCode').value = student.code || '';
+  document.getElementById('stGrade').value = student.grade !== '—' ? (student.grade || '') : '';
+  document.getElementById('stParentName').value = student.parentName !== '—' ? (student.parentName || '') : '';
+  document.getElementById('stPhone').value = student.phone || '';
+  document.getElementById('stNotes').value = student.notes || '';
+  document.getElementById('studentModal').classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeStudentModal() {
+  document.getElementById('studentModal').classList.remove('active');
+  document.body.style.overflow = '';
+}
+
+async function handleStudentFormSubmit(e) {
+  e.preventDefault();
+  const id = document.getElementById('stEditId').value;
+  const name = document.getElementById('stName').value.trim();
+  const code = document.getElementById('stCode').value.trim().toUpperCase();
+  const grade = document.getElementById('stGrade').value.trim();
+  const parentName = document.getElementById('stParentName').value.trim();
+  const phone = document.getElementById('stPhone').value.trim().replace(/\D/g, '');
+  const notes = document.getElementById('stNotes').value.trim();
+
+  if (!name || !code) {
+    toast('Öğrenci adı ve takip kodu zorunludur!', 'error');
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API}/api/admin/students`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Admin-Password': adminPassword
+      },
+      body: JSON.stringify({ id, name, code, grade, parentName, phone, notes })
+    });
+    const d = await res.json();
+    if (res.ok) {
+      toast(id ? 'Öğrenci güncellendi ✓' : 'Yeni öğrenci eklendi ✓', 'success');
+      closeStudentModal();
+      savedStudents = d.students || [];
+      updateStudentDatalists();
+      renderStudentsDirectory();
+    } else {
+      toast(d.error || 'Hata oluştu', 'error');
+    }
+  } catch (err) {
+    toast('Bağlantı hatası', 'error');
+  }
+}
+
+async function deleteStudent(id) {
+  const student = savedStudents.find(s => s.id === id);
+  const name = student ? student.name : 'Bu öğrenci';
+  if (!confirm(`"${name}" adlı öğrenciyi rehberden silmek istediğinize emin misiniz? (Geçmiş takvim dersleri silinmez)`)) return;
+
+  try {
+    const res = await fetch(`${API}/api/admin/students/${id}`, {
+      method: 'DELETE',
+      headers: { 'X-Admin-Password': adminPassword }
+    });
+    const d = await res.json();
+    if (res.ok) {
+      toast('Öğrenci silindi', 'info');
+      savedStudents = d.students || [];
+      updateStudentDatalists();
+      renderStudentsDirectory();
+    } else {
+      toast(d.error || 'Silinemedi', 'error');
+    }
+  } catch (err) {
+    toast('Bağlantı hatası', 'error');
+  }
+}
+
 // Globals
 window.deleteBlock=deleteBlock; window.updateReqStatus=updateReqStatus; window.deleteReq=deleteReq;
 window.restoreArchivedBlock=restoreArchivedBlock;
@@ -935,3 +1193,6 @@ window.goWeek=goWeek; window.closeBlockModal=closeBlockModal; window.closeRecurr
 window.deleteRecurringGroup=deleteRecurringGroup; window.resetAllRecurringGroups=resetAllRecurringGroups;
 window.openPasswordModal=openPasswordModal; window.closePasswordModal=closePasswordModal;
 window.approveWithCode=approveWithCode;
+window.openAddStudentModal=openAddStudentModal; window.openEditStudentModal=openEditStudentModal;
+window.closeStudentModal=closeStudentModal; window.deleteStudent=deleteStudent;
+

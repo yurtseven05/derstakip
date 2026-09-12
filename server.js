@@ -193,6 +193,11 @@ app.post('/api/blocks', (req, res) => {
   const block = { id: genId(), date, startTime, endTime, label: label || '', studentCode: studentCode || '' };
   allBlocks.push(block);
   storage.setBlocks(allBlocks);
+
+  if (label || studentCode) {
+    storage.upsertStudent({ name: label, code: studentCode });
+  }
+
   res.json({ status: 'ok', block });
 });
 
@@ -238,6 +243,11 @@ app.post('/api/blocks/recurring', (req, res) => {
     }
   }
   storage.setBlocks(allBlocks);
+
+  if (label || studentCode) {
+    storage.upsertStudent({ name: label, code: studentCode });
+  }
+
   res.json({ status: 'ok', created, count: created.length, groupId });
 });
 
@@ -418,6 +428,12 @@ app.patch('/api/requests/:id', (req, res) => {
         });
         storage.setBlocks(allBlocks);
       }
+
+      storage.upsertStudent({
+        name: `${r.firstName} ${r.lastName}`.trim(),
+        code: studentCode || r.studentCode || '',
+        phone: r.phone || ''
+      });
     }
   }
   res.json({ status: 'ok', request: r });
@@ -549,6 +565,38 @@ app.get('/api/student-stats/:code', rateLimiter('studentStats', 30, 60000, 'Çok
   });
 });
 
+// 4.2. Students Directory Management (Admin Only)
+app.get('/api/admin/students', (req, res) => {
+  if (!verifyAdmin(req)) return res.status(401).json({ error: 'Yetkisiz erişim.' });
+  res.json({ students: storage.getStudents() });
+});
+
+app.post('/api/admin/students', (req, res) => {
+  if (!verifyAdmin(req)) return res.status(401).json({ error: 'Yetkisiz erişim.' });
+  let { id, name, code, grade, parentName, phone, notes } = req.body;
+  name = sanitizeString(name, 50);
+  code = sanitizeString(code, 20).toUpperCase();
+  grade = sanitizeString(grade, 30);
+  parentName = sanitizeString(parentName, 50);
+  phone = sanitizeString(phone, 20).replace(/\D/g, '');
+  notes = sanitizeString(notes, 300);
+
+  if (!name && !code) {
+    return res.status(400).json({ error: 'Öğrenci adı veya takip kodu zorunludur.' });
+  }
+
+  const updatedList = storage.upsertStudent({ id, name, code, grade, parentName, phone, notes });
+  res.json({ status: 'ok', students: updatedList });
+});
+
+app.delete('/api/admin/students/:id', (req, res) => {
+  if (!verifyAdmin(req)) return res.status(401).json({ error: 'Yetkisiz erişim.' });
+  const safeId = sanitizeString(req.params.id, 64);
+  const list = storage.getStudents().filter(s => s.id !== safeId);
+  storage.setStudents(list);
+  res.json({ status: 'ok', students: list });
+});
+
 // 5. Authentication with Brute Force Protection
 app.post('/api/admin/login', rateLimiter('login', 5, 900000, 'Çok fazla hatalı giriş denemesi yapıldı.'), (req, res) => {
   const isAuth = verifyAdmin(req);
@@ -576,6 +624,7 @@ app.get('/api/admin/export-data', (req, res) => {
   if (!verifyAdmin(req)) return res.status(401).json({ error: 'Yetkisiz erişim.' });
   const blocks = storage.getBlocks();
   const requests = storage.getRequests();
+  const students = storage.getStudents();
   const config = storage.getConfig();
   const archive = storage.getArchive();
 
@@ -586,10 +635,12 @@ app.get('/api/admin/export-data', (req, res) => {
     stats: {
       blocksCount: blocks.length,
       requestsCount: requests.length,
+      studentsCount: students.length,
       archiveCount: (archive.deletedBlocks || []).length
     },
     blocks,
     requests,
+    students,
     config,
     archive
   };
@@ -602,7 +653,7 @@ app.get('/api/admin/export-data', (req, res) => {
 
 app.post('/api/admin/import-data', (req, res) => {
   if (!verifyAdmin(req)) return res.status(401).json({ error: 'Yetkisiz erişim.' });
-  const { blocks, requests, config, archive } = req.body;
+  const { blocks, requests, students, config, archive } = req.body;
 
   if (!Array.isArray(blocks) && !Array.isArray(requests)) {
     return res.status(400).json({ error: 'Geçersiz yedek dosyası yapısı. "blocks" veya "requests" dizisi bulunamadı.' });
@@ -617,6 +668,9 @@ app.post('/api/admin/import-data', (req, res) => {
   if (Array.isArray(requests)) {
     storage.setRequests(requests);
   }
+  if (Array.isArray(students)) {
+    storage.setStudents(students);
+  }
   if (config && typeof config === 'object' && config.schedule) {
     storage.setConfig(config);
   }
@@ -628,7 +682,8 @@ app.post('/api/admin/import-data', (req, res) => {
     status: 'ok',
     message: 'Yedek başarıyla geri yüklendi ve bulutla senkronize edildi.',
     blocksCount: blocks ? blocks.length : 0,
-    requestsCount: requests ? requests.length : 0
+    requestsCount: requests ? requests.length : 0,
+    studentsCount: students ? students.length : 0
   });
 });
 
