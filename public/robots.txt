@@ -1,0 +1,13 @@
+﻿# Robots.txt for Özel Ders Takvimi
+User-agent: *
+Allow: /
+Allow: /index.html
+Allow: /css/
+Allow: /js/
+
+# Disallow admin panels and sensitive endpoints
+Disallow: /admin.html
+Disallow: /api/
+
+# Sitemap location
+Sitemap: https://sibelkiral.com/sitemap.xml
