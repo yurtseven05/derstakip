@@ -63,10 +63,10 @@
   --student-8: #6E323B; --student-8-bg: rgba(110, 50, 59, 0.14);   /* Chestnut Rose */
   --student-9: #43543A; --student-9-bg: rgba(67, 84, 58, 0.16);    /* Dark Moss */
 
-  /* Gradients */
-  --gradient-hero: linear-gradient(135deg, #5D8A4E 0%, #55262D 100%);
-  --gradient-card: linear-gradient(135deg, rgba(119, 156, 109, 0.08) 0%, rgba(93, 138, 78, 0.03) 100%);
-  --gradient-warm: linear-gradient(135deg, #779C6D, #55262D);
+  /* Gradients Removed - Solid Crisp Colors */
+  --gradient-hero: #5D8A4E;
+  --gradient-card: var(--bg-card);
+  --gradient-warm: #5D8A4E;
 
   /* Spacing */
   --spacing-xs: 4px;
@@ -114,15 +114,11 @@ html {
 
 body {
   font-family: var(--font-serif);
-  background: var(--bg-primary) linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-primary) 100%) fixed;
+  background: var(--bg-primary);
   color: var(--text-primary);
   line-height: 1.6;
   min-height: 100vh;
   overflow-x: hidden;
-  background-image:
-    radial-gradient(ellipse at 15% 0%, rgba(176, 197, 87, 0.25) 0%, transparent 60%),
-    radial-gradient(ellipse at 85% 100%, rgba(85, 38, 45, 0.05) 0%, transparent 50%),
-    radial-gradient(ellipse at 90% 10%, rgba(119, 156, 109, 0.12) 0%, transparent 40%);
 }
 
 /* Texture overlay */
