@@ -1796,6 +1796,16 @@ body::before {
   color: var(--text-primary);
   border-color: var(--border-glass);
 }
+.student-action-btn.analysis {
+  background: rgba(14, 116, 144, 0.12);
+  color: #0e7490;
+  border-color: rgba(14, 116, 144, 0.25);
+}
+.student-action-btn.copy {
+  background: var(--bg-glass);
+  color: var(--text-primary);
+  border-color: var(--border-glass);
+}
 .student-action-btn:hover {
   transform: translateY(-1px);
   filter: brightness(0.95);

@@ -597,6 +597,133 @@ app.delete('/api/admin/students/:id', (req, res) => {
   res.json({ status: 'ok', students: list });
 });
 
+// 4.3. Detailed Student Analysis for Admin by Tag / Code / Name
+app.get('/api/admin/student-analysis/:query', (req, res) => {
+  if (!verifyAdmin(req)) return res.status(401).json({ error: 'Yetkisiz erişim.' });
+  const rawQuery = sanitizeString(req.params.query, 60);
+  if (!rawQuery) {
+    return res.status(400).json({ error: 'Lütfen geçerli bir öğrenci kodu veya adı giriniz.' });
+  }
+
+  const queryUpper = rawQuery.toUpperCase();
+  const queryLower = rawQuery.toLowerCase();
+
+  const allBlocks = storage.getBlocks();
+  const allStudents = storage.getStudents();
+
+  // Find student profile from directory
+  const studentProfile = allStudents.find(s => 
+    (s.code && s.code.toUpperCase() === queryUpper) ||
+    (s.name && s.name.toLowerCase() === queryLower) ||
+    (s.id === rawQuery)
+  ) || null;
+
+  const targetCode = studentProfile?.code || (rawQuery.length <= 12 ? queryUpper : '');
+  const targetName = studentProfile?.name || rawQuery;
+
+  // Filter blocks matching studentCode or label/name
+  const matchingBlocks = allBlocks.filter(b => {
+    const bCode = (b.studentCode || '').trim().toUpperCase();
+    const bLabel = (b.label || '').trim().toLowerCase();
+    return (targetCode && bCode === targetCode.toUpperCase()) || 
+           (bLabel && bLabel === targetName.toLowerCase()) ||
+           (targetCode && bLabel.includes(targetCode.toLowerCase()));
+  });
+
+  // Infer name and code if student profile is not explicitly in directory
+  let inferredName = studentProfile?.name || '';
+  let inferredCode = studentProfile?.code || '';
+  if (!inferredName && matchingBlocks.length) {
+    const bWithLabel = matchingBlocks.find(b => b.label && b.label.trim().toUpperCase() !== queryUpper);
+    if (bWithLabel) inferredName = bWithLabel.label.trim();
+    else inferredName = targetName;
+  } else if (!inferredName) {
+    inferredName = targetName;
+  }
+  if (!inferredCode && matchingBlocks.length) {
+    const bWithCode = matchingBlocks.find(b => b.studentCode && b.studentCode.trim());
+    if (bWithCode) inferredCode = bWithCode.studentCode.trim().toUpperCase();
+    else inferredCode = targetCode;
+  } else if (!inferredCode) {
+    inferredCode = targetCode;
+  }
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const currentYM = todayStr.substring(0, 7);
+
+  let totalCount = 0;
+  let totalHours = 0;
+  let thisMonthCount = 0;
+  let thisMonthHours = 0;
+  const monthlyBreakdown = {};
+  const upcomingLessons = [];
+  const pastLessons = [];
+
+  matchingBlocks.sort((a, b) => a.date.localeCompare(b.date));
+
+  matchingBlocks.forEach(b => {
+    const sMin = toMin(b.startTime);
+    const eMin = toMin(b.endTime);
+    const hours = (eMin - sMin) / 60;
+    totalCount++;
+    totalHours += hours;
+
+    const ym = b.date.substring(0, 7);
+    if (!monthlyBreakdown[ym]) monthlyBreakdown[ym] = { count: 0, hours: 0 };
+    monthlyBreakdown[ym].count++;
+    monthlyBreakdown[ym].hours += hours;
+
+    if (ym === currentYM) {
+      thisMonthCount++;
+      thisMonthHours += hours;
+    }
+
+    const lessonItem = {
+      id: b.id,
+      date: b.date,
+      startTime: b.startTime,
+      endTime: b.endTime,
+      durationMinutes: eMin - sMin,
+      label: b.label || inferredName,
+      studentCode: b.studentCode || inferredCode
+    };
+
+    if (b.date >= todayStr) {
+      upcomingLessons.push(lessonItem);
+    } else {
+      pastLessons.push(lessonItem);
+    }
+  });
+
+  // Past lessons sorted newest first
+  pastLessons.reverse();
+
+  res.json({
+    status: 'ok',
+    query: rawQuery,
+    student: studentProfile || {
+      name: inferredName,
+      code: inferredCode,
+      grade: '—',
+      parentName: '—',
+      phone: '',
+      notes: ''
+    },
+    total: {
+      count: totalCount,
+      hours: Math.round(totalHours * 10) / 10
+    },
+    thisMonth: {
+      yearMonth: currentYM,
+      count: thisMonthCount,
+      hours: Math.round(thisMonthHours * 10) / 10
+    },
+    monthly: monthlyBreakdown,
+    upcomingLessons,
+    pastLessons
+  });
+});
+
 // 5. Authentication with Brute Force Protection
 app.post('/api/admin/login', rateLimiter('login', 5, 900000, 'Çok fazla hatalı giriş denemesi yapıldı.'), (req, res) => {
   const isAuth = verifyAdmin(req);

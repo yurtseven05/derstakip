@@ -411,24 +411,38 @@ function renderAnalytics(data) {
   const students = Object.entries(data.students).sort((a,b)=>b[1].hours-a[1].hours);
   h+=`<h3 style="margin:24px 0 12px;font-size:1.1rem;">👤 Öğrenci & Takip Kodları</h3>`;
   if(students.length){
-    h+='<div class="analytics-table"><table><thead><tr><th>Öğrenci / Etiket</th><th>Takip Kodu</th><th>Ders Sayısı</th><th>Toplam Saat</th></tr></thead><tbody>';
+    h+='<div class="analytics-table"><table><thead><tr><th>Öğrenci / Etiket</th><th>Takip Kodu</th><th>Ders Sayısı</th><th>Toplam Saat</th><th style="text-align:right;">İşlem</th></tr></thead><tbody>';
     students.forEach(([name, val])=>{
       const codeBadge = val.studentCode ? `<span style="background:var(--accent-primary);color:#fff;padding:2px 8px;border-radius:6px;font-weight:700;font-size:0.8rem;">${esc(val.studentCode)}</span>` : '<span style="color:var(--text-muted)">—</span>';
-      h+=`<tr><td><strong>${esc(name)}</strong></td><td>${codeBadge}</td><td>${val.count} ders</td><td>${Math.round(val.hours*10)/10} saat</td></tr>`;
+      const qTarget = val.studentCode || name;
+      h+=`<tr>
+        <td><strong>${esc(name)}</strong></td>
+        <td>${codeBadge}</td>
+        <td>${val.count} ders</td>
+        <td>${Math.round(val.hours*10)/10} saat</td>
+        <td style="text-align:right;"><button class="student-action-btn analysis" onclick="openStudentAnalysisModal('${esc(qTarget)}')">📊 Analiz</button></td>
+      </tr>`;
     });
     h+='</tbody></table></div>';
   } else h+='<p style="color:var(--text-muted);font-size:0.85rem;">Etiketli ders bloğu yok.</p>';
 
   if(data.studentCodes && data.studentCodes.length) {
     h+=`<h3 style="margin:24px 0 12px;font-size:1.1rem;">🔑 Tanımlı Veli / Öğrenci Kodları Özeti</h3>`;
-    h+='<div class="analytics-table"><table><thead><tr><th>Öğrenci Kodu</th><th>Eşleşen Öğrenci</th><th>Toplam Ders</th><th>Toplam Saat</th></tr></thead><tbody>';
+    h+='<div class="analytics-table"><table><thead><tr><th>Öğrenci Kodu</th><th>Eşleşen Öğrenci</th><th>Toplam Ders</th><th>Toplam Saat</th><th style="text-align:right;">İşlem</th></tr></thead><tbody>';
     data.studentCodes.forEach(sc => {
-      h+=`<tr><td><strong style="color:var(--accent-primary);font-size:1rem;">${esc(sc.code)}</strong></td><td>${esc(sc.studentName || '—')}</td><td>${sc.count} ders</td><td>${Math.round(sc.hours*10)/10} saat</td></tr>`;
+      h+=`<tr>
+        <td><strong style="color:var(--accent-primary);font-size:1rem;">${esc(sc.code)}</strong></td>
+        <td>${esc(sc.studentName || '—')}</td>
+        <td>${sc.count} ders</td>
+        <td>${Math.round(sc.hours*10)/10} saat</td>
+        <td style="text-align:right;"><button class="student-action-btn analysis" onclick="openStudentAnalysisModal('${esc(sc.code)}')">📊 Analiz</button></td>
+      </tr>`;
     });
     h+='</tbody></table></div>';
   }
 
   c.innerHTML=h;
+  renderQuickStudentChips();
 }
 
 // ---- Events ----
@@ -456,6 +470,16 @@ function setupListeners() {
   const stForm = document.getElementById('studentForm');
   if(stForm) {
     stForm.addEventListener('submit', handleStudentFormSubmit);
+  }
+
+  const stAnalysisForm = document.getElementById('studentAnalysisForm');
+  if(stAnalysisForm) {
+    stAnalysisForm.addEventListener('submit', e => {
+      e.preventDefault();
+      const q = (document.getElementById('studentAnalysisInput').value || '').trim();
+      if (q) openStudentAnalysisModal(q);
+      else toast('Lütfen bir öğrenci kodu veya adı girin', 'info');
+    });
   }
 
   document.querySelectorAll('.view-toggle button').forEach(b => b.addEventListener('click',()=>{
@@ -1085,6 +1109,7 @@ function renderStudentsDirectory(filterQuery = '') {
       <td>${phoneActions}</td>
       <td><strong>${Math.round(stats.hours * 10) / 10} saat</strong> <small style="color:var(--text-muted)">(${stats.count} ders)</small></td>
       <td style="text-align:right; white-space:nowrap;">
+        <button class="student-action-btn analysis" onclick="openStudentAnalysisModal('${esc(s.code || s.name)}')">📊 Analiz</button>
         <button class="student-action-btn edit" onclick="openEditStudentModal('${s.id}')">✏️ Düzenle</button>
         <button class="student-action-btn delete" onclick="deleteStudent('${s.id}')">🗑️ Sil</button>
       </td>
@@ -1186,6 +1211,257 @@ async function deleteStudent(id) {
   }
 }
 
+// ---- Student-Specific Detailed Analysis ----
+function renderQuickStudentChips() {
+  const container = document.getElementById('quickStudentChips');
+  if (!container) return;
+  const codes = new Set();
+  savedStudents.forEach(s => { if (s.code) codes.add(s.code.toUpperCase()); });
+  blocks.forEach(b => { if (b.studentCode) codes.add(b.studentCode.toUpperCase()); });
+
+  if (!codes.size) {
+    container.innerHTML = '';
+    return;
+  }
+
+  let h = '<span style="font-size:0.8rem;color:var(--text-muted);font-weight:600;margin-right:4px;">Hızlı Analiz:</span>';
+  Array.from(codes).sort().forEach(code => {
+    h += `<button type="button" class="student-action-btn analysis" onclick="openStudentAnalysisModal('${esc(code)}')" style="font-size:0.78rem;padding:3px 9px;cursor:pointer;">${esc(code)}</button>`;
+  });
+  container.innerHTML = h;
+}
+
+function generateWhatsAppReportText(data) {
+  const student = data.student || {};
+  const studentName = student.name || 'Öğrencimiz';
+  const studentCode = student.code ? `[${student.code}]` : '';
+  const parentName = (student.parentName && student.parentName !== '—') ? `Sayın ${student.parentName}` : 'Değerli Velimiz';
+
+  const thisMonthHours = data.thisMonth?.hours || 0;
+  const thisMonthCount = data.thisMonth?.count || 0;
+  const totalHours = data.total?.hours || 0;
+  const totalCount = data.total?.count || 0;
+
+  let nextLessonStr = 'Planlanmış ders bulunmuyor';
+  if (data.upcomingLessons && data.upcomingLessons.length) {
+    const next = data.upcomingLessons[0];
+    const [y, m, d] = next.date.split('-').map(Number);
+    const dt = new Date(y, m - 1, d);
+    nextLessonStr = `${d} ${MONTHS[m - 1]} ${DAYS[dt.getDay()]} (${next.startTime} - ${next.endTime})`;
+  }
+
+  return `Merhaba ${parentName},\n\n` +
+    `Sibel Hoca Özel Ders Bilgilendirmesi 📚\n` +
+    `Öğrenci: ${studentName} ${studentCode}\n\n` +
+    `📊 Bu Ayki Dersler: ${thisMonthCount} ders (${thisMonthHours} saat)\n` +
+    `🎯 Genel Toplam: ${totalCount} ders (${totalHours} saat)\n` +
+    `🗓️ Sıradaki Ders: ${nextLessonStr}\n\n` +
+    `İyi günler, başarılar dileriz.`;
+}
+
+async function openStudentAnalysisModal(query) {
+  if (!query) return;
+  const modal = document.getElementById('studentAnalysisModal');
+  const loading = document.getElementById('samLoading');
+  const body = document.getElementById('samBody');
+  if (!modal) return;
+
+  modal.classList.add('active');
+  document.body.style.overflow = 'hidden';
+  if (loading) loading.style.display = 'block';
+  if (body) body.style.display = 'none';
+
+  // Pre-fill search input
+  const searchInput = document.getElementById('studentAnalysisInput');
+  if (searchInput) searchInput.value = query;
+
+  try {
+    const res = await fetch(`${API}/api/admin/student-analysis/${encodeURIComponent(query.trim())}`, {
+      headers: { 'X-Admin-Password': adminPassword }
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      toast(data.error || 'Öğrenci analizi getirilemedi', 'error');
+      closeStudentAnalysisModal();
+      return;
+    }
+
+    const st = data.student || {};
+    const nameEl = document.getElementById('samStudentName');
+    if (nameEl) nameEl.textContent = st.name || query;
+
+    const codeEl = document.getElementById('samStudentCode');
+    if (codeEl) {
+      if (st.code) {
+        codeEl.textContent = `Kod: ${st.code}`;
+        codeEl.style.display = 'inline-block';
+      } else {
+        codeEl.style.display = 'none';
+      }
+    }
+
+    const gradeEl = document.getElementById('samStudentGrade');
+    if (gradeEl) {
+      if (st.grade && st.grade !== '—') {
+        gradeEl.textContent = st.grade;
+        gradeEl.style.display = 'inline-block';
+      } else {
+        gradeEl.style.display = 'none';
+      }
+    }
+
+    const metaEl = document.getElementById('samStudentMeta');
+    if (metaEl) {
+      metaEl.textContent = `Toplam ${data.total.count} ders kaydı eşleşti • Son kontrol: ${new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}`;
+    }
+
+    // Parent information & Actions
+    const parentInfoEl = document.getElementById('samParentInfo');
+    const parentActionsEl = document.getElementById('samParentActions');
+    const parentNameStr = (st.parentName && st.parentName !== '—') ? st.parentName : '';
+    const cleanPhone = (st.phone || '').replace(/\D/g, '');
+
+    if (parentInfoEl) {
+      if (parentNameStr && cleanPhone) {
+        parentInfoEl.innerHTML = `<strong>${esc(parentNameStr)}</strong> • 0${cleanPhone.slice(-10)}`;
+      } else if (parentNameStr) {
+        parentInfoEl.innerHTML = `<strong>${esc(parentNameStr)}</strong>`;
+      } else if (cleanPhone) {
+        parentInfoEl.innerHTML = `Veli Tel: <strong>0${cleanPhone.slice(-10)}</strong>`;
+      } else {
+        parentInfoEl.innerHTML = `<span style="color:var(--text-muted)">Veli bilgisi henüz girilmemiş</span>`;
+      }
+    }
+
+    // Prepare WhatsApp Message text
+    const waText = generateWhatsAppReportText(data);
+    let actionButtonsHtml = '';
+
+    if (cleanPhone) {
+      const waNumber = cleanPhone.startsWith('90') ? cleanPhone : (cleanPhone.startsWith('0') ? '9' + cleanPhone : '90' + cleanPhone);
+      actionButtonsHtml += `<a href="https://wa.me/${waNumber}?text=${encodeURIComponent(waText)}" target="_blank" class="student-action-btn wa" title="Veliye WhatsApp Ders Raporu Gönder">💬 Veliye WhatsApp Raporu</a>`;
+      actionButtonsHtml += `<a href="tel:${cleanPhone}" class="student-action-btn call" title="Telefonla Ara">📞 Ara</a>`;
+    }
+
+    actionButtonsHtml += `<button type="button" class="student-action-btn copy" id="samCopyReportBtn" title="Rapor metnini panoya kopyala">📋 Raporu Kopyala</button>`;
+    if (parentActionsEl) parentActionsEl.innerHTML = actionButtonsHtml;
+
+    const copyBtn = document.getElementById('samCopyReportBtn');
+    if (copyBtn) {
+      copyBtn.onclick = () => {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(waText).then(() => {
+            toast('Rapor metni panoya kopyalandı ✓', 'success');
+          }).catch(() => {
+            prompt('Rapor Metni (Ctrl+C ile kopyalayabilirsiniz):', waText);
+          });
+        } else {
+          prompt('Rapor Metni (Ctrl+C ile kopyalayabilirsiniz):', waText);
+        }
+      };
+    }
+
+    // Stat Cards
+    const totalHoursEl = document.getElementById('samTotalHours');
+    if (totalHoursEl) totalHoursEl.textContent = `${data.total.hours} sa`;
+
+    const totalCountEl = document.getElementById('samTotalCount');
+    if (totalCountEl) totalCountEl.textContent = `${data.total.count} ders`;
+
+    const thisMonthEl = document.getElementById('samThisMonth');
+    if (thisMonthEl) thisMonthEl.textContent = `${data.thisMonth.hours} sa (${data.thisMonth.count} ders)`;
+
+    const upCountEl = document.getElementById('samUpcomingCount');
+    if (upCountEl) upCountEl.textContent = `${data.upcomingLessons.length} ders`;
+
+    // Monthly Distribution Table
+    const monthlyContainer = document.getElementById('samMonthlyTable');
+    if (monthlyContainer) {
+      const months = Object.entries(data.monthly || {}).sort((a, b) => b[0].localeCompare(a[0]));
+      if (months.length) {
+        let mh = '<table><thead><tr><th>Dönem / Ay</th><th>Ders Sayısı</th><th>Toplam Saat</th><th>Açıklama</th></tr></thead><tbody>';
+        months.forEach(([ym, val]) => {
+          const [y, m] = ym.split('-');
+          const isCurrent = ym === data.thisMonth.yearMonth;
+          mh += `<tr style="${isCurrent ? 'background: rgba(93, 138, 78, 0.08); font-weight: 600;' : ''}">
+            <td><strong>${MONTHS[parseInt(m) - 1]} ${y}</strong>${isCurrent ? ' <small style="color:var(--accent-primary);font-weight:700;">(Bu Ay)</small>' : ''}</td>
+            <td>${val.count} ders</td>
+            <td><strong>${Math.round(val.hours * 10) / 10} saat</strong></td>
+            <td><small style="color:var(--text-muted)">Tamamlanan & planlanan</small></td>
+          </tr>`;
+        });
+        mh += '</tbody></table>';
+        monthlyContainer.innerHTML = mh;
+      } else {
+        monthlyContainer.innerHTML = '<p style="color:var(--text-muted);font-size:0.85rem;padding:8px 0;">Bu öğrenciye ait kayıtlı ay bulunmuyor.</p>';
+      }
+    }
+
+    // Upcoming Lessons
+    const upContainer = document.getElementById('samUpcomingList');
+    const upBadge = document.getElementById('samUpcomingBadge');
+    if (upBadge) upBadge.textContent = `${data.upcomingLessons.length} planlı ders`;
+    if (upContainer) {
+      if (data.upcomingLessons && data.upcomingLessons.length) {
+        let uh = '<div class="analytics-table" style="margin-bottom:0;"><table><thead><tr><th>Tarih</th><th>Saat</th><th>Süre</th><th>Etiket / Durum</th></tr></thead><tbody>';
+        data.upcomingLessons.forEach(l => {
+          const [y, m, d] = l.date.split('-').map(Number);
+          const dt = new Date(y, m - 1, d);
+          const durHours = Math.round((l.durationMinutes / 60) * 10) / 10;
+          uh += `<tr>
+            <td><strong>${d} ${MONTHS[m - 1]} ${y}</strong> <small style="color:var(--text-muted)">(${DAYS[dt.getDay()]})</small></td>
+            <td><strong>${l.startTime} – ${l.endTime}</strong></td>
+            <td>${durHours} saat (${l.durationMinutes} dk)</td>
+            <td><span class="status-badge approved">Planlandı</span></td>
+          </tr>`;
+        });
+        uh += '</tbody></table></div>';
+        upContainer.innerHTML = uh;
+      } else {
+        upContainer.innerHTML = '<p style="color:var(--text-muted);font-size:0.85rem;background:var(--bg-glass);padding:12px 14px;border-radius:var(--radius-sm);border:1px dashed var(--border-glass);">Yaklaşan planlanmış ders bulunmuyor.</p>';
+      }
+    }
+
+    // Past Lessons History
+    const pastContainer = document.getElementById('samPastList');
+    const pastBadge = document.getElementById('samPastBadge');
+    if (pastBadge) pastBadge.textContent = `${data.pastLessons.length} tamamlanan ders`;
+    if (pastContainer) {
+      if (data.pastLessons && data.pastLessons.length) {
+        let ph = '<div class="analytics-table" style="margin-bottom:0; max-height:260px; overflow-y:auto;"><table><thead><tr><th>Tarih</th><th>Saat</th><th>Süre</th><th>Etiket</th></tr></thead><tbody>';
+        data.pastLessons.forEach(l => {
+          const [y, m, d] = l.date.split('-').map(Number);
+          const dt = new Date(y, m - 1, d);
+          const durHours = Math.round((l.durationMinutes / 60) * 10) / 10;
+          ph += `<tr>
+            <td><strong>${d} ${MONTHS[m - 1]} ${y}</strong> <small style="color:var(--text-muted)">(${DAYS[dt.getDay()]})</small></td>
+            <td>${l.startTime} – ${l.endTime}</td>
+            <td>${durHours} saat</td>
+            <td><small style="background:var(--bg-glass);padding:2px 6px;border-radius:4px;border:1px solid var(--border-glass);">${esc(l.studentCode || l.label || 'Ders')}</small></td>
+          </tr>`;
+        });
+        ph += '</tbody></table></div>';
+        pastContainer.innerHTML = ph;
+      } else {
+        pastContainer.innerHTML = '<p style="color:var(--text-muted);font-size:0.85rem;background:var(--bg-glass);padding:12px 14px;border-radius:var(--radius-sm);border:1px dashed var(--border-glass);">Henüz tamamlanmış geçmiş ders kaydı bulunmuyor.</p>';
+      }
+    }
+
+    if (loading) loading.style.display = 'none';
+    if (body) body.style.display = 'block';
+
+  } catch (err) {
+    toast('Öğrenci analiz verisi yüklenirken hata oluştu', 'error');
+    closeStudentAnalysisModal();
+  }
+}
+
+function closeStudentAnalysisModal() {
+  const modal = document.getElementById('studentAnalysisModal');
+  if (modal) modal.classList.remove('active');
+  document.body.style.overflow = '';
+}
+
 // Globals
 window.deleteBlock=deleteBlock; window.updateReqStatus=updateReqStatus; window.deleteReq=deleteReq;
 window.restoreArchivedBlock=restoreArchivedBlock;
@@ -1195,4 +1471,6 @@ window.openPasswordModal=openPasswordModal; window.closePasswordModal=closePassw
 window.approveWithCode=approveWithCode;
 window.openAddStudentModal=openAddStudentModal; window.openEditStudentModal=openEditStudentModal;
 window.closeStudentModal=closeStudentModal; window.deleteStudent=deleteStudent;
+window.openStudentAnalysisModal=openStudentAnalysisModal; window.closeStudentAnalysisModal=closeStudentAnalysisModal;
+
 

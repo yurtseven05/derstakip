@@ -117,6 +117,26 @@
       <section class="container" style="margin-top: 24px;">
         <div class="section-header"><h2>📊 Ders Analizi</h2></div>
         <p class="hint-text">Aylık ders sayısı, toplam saat ve öğrenci bazlı istatistikler.</p>
+
+        <!-- Quick Student Tag / Code Specific Analysis Search Box -->
+        <div style="background: var(--bg-card); border: 1px solid var(--border-glass); border-radius: var(--radius-lg); padding: 18px 20px; margin-bottom: 24px; box-shadow: var(--shadow-sm);">
+          <div style="margin-bottom: 12px;">
+            <h3 style="font-size: 1.05rem; font-weight: 700; margin: 0 0 4px 0; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+              <span>🎯</span> Öğrenci Etiketi / Kodu ile Özel Analiz
+            </h3>
+            <p style="font-size: 0.84rem; color: var(--text-secondary); margin: 0;">
+              Öğrenci kodu (örneğin <strong>Z4</strong>) veya adını yazarak o öğrencinin tüm ders geçmişini, aylık saatlerini ve yaklaşan derslerini inceleyin.
+            </p>
+          </div>
+          <form id="studentAnalysisForm" style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <input type="text" id="studentAnalysisInput" placeholder="Öğrenci Takip Kodu veya Adı Girin (Örn: Z4, Ahmet)" list="studentCodesList" autocomplete="off" style="flex: 1; min-width: 220px; padding: 10px 14px; border: 1px solid var(--border-glass); border-radius: var(--radius-md); background: var(--bg-glass); color: var(--text-primary); font-size: 0.95rem; text-transform: uppercase;">
+            <button type="submit" class="btn btn-primary" style="width: auto; padding: 10px 22px; white-space: nowrap;">
+              📊 Öğrenciyi Analiz Et
+            </button>
+          </form>
+          <div id="quickStudentChips" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; align-items: center;"></div>
+        </div>
+
         <div id="analyticsContent">
           <div class="empty-state"><div class="empty-icon">📊</div><p>Yükleniyor...</p></div>
         </div>
@@ -362,6 +382,85 @@
           <button type="submit" class="btn btn-primary" style="flex:2;">Kaydet</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- Student Detailed Analysis Modal -->
+  <div class="modal-overlay" id="studentAnalysisModal">
+    <div class="modal" style="max-width: 720px; width: 95%;">
+      <div class="modal-header">
+        <div>
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <h3 id="samStudentName" style="margin: 0; font-size: 1.25rem;">Öğrenci Analizi</h3>
+            <span id="samStudentCode" style="background: var(--accent-primary); color: #fff; padding: 2px 8px; border-radius: 6px; font-weight: 800; font-size: 0.85rem;"></span>
+            <span id="samStudentGrade" style="background: var(--bg-glass); border: 1px solid var(--border-glass); color: var(--text-secondary); padding: 2px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: 600;"></span>
+          </div>
+          <small id="samStudentMeta" style="color: var(--text-muted); font-size: 0.82rem; margin-top: 4px; display: block;"></small>
+        </div>
+        <button class="modal-close" onclick="closeStudentAnalysisModal()">✕</button>
+      </div>
+
+      <div id="samLoading" style="text-align: center; padding: 30px 0;">
+        <div class="empty-icon" style="font-size: 2rem;">⏳</div>
+        <p style="color: var(--text-secondary); margin-top: 8px;">Analiz verileri yükleniyor...</p>
+      </div>
+
+      <div id="samBody" style="display: none; max-height: 75vh; overflow-y: auto; padding-right: 4px;">
+        <!-- Parent Contact & Quick Actions -->
+        <div style="background: var(--bg-card); border: 1px solid var(--border-glass); border-radius: var(--radius-md); padding: 14px 16px; margin-bottom: 16px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div>
+              <div style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 600; text-transform: uppercase;">👨‍👩‍👧 Veli & İletişim Bilgileri</div>
+              <div style="font-size: 0.95rem; font-weight: 700; color: var(--text-primary); margin-top: 2px;" id="samParentInfo">Veli: —</div>
+            </div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;" id="samParentActions"></div>
+          </div>
+        </div>
+
+        <!-- Stat Cards -->
+        <div class="admin-stats" style="margin-bottom: 20px;">
+          <div class="stat-card primary">
+            <div class="stat-value" id="samTotalHours" style="font-size: 1.25rem;">0 sa</div>
+            <div class="stat-label">Genel Toplam Saat</div>
+          </div>
+          <div class="stat-card green">
+            <div class="stat-value" id="samTotalCount" style="font-size: 1.25rem;">0 ders</div>
+            <div class="stat-label">Toplam Ders Sayısı</div>
+          </div>
+          <div class="stat-card amber">
+            <div class="stat-value" id="samThisMonth" style="font-size: 1.25rem;">0 sa</div>
+            <div class="stat-label">Bu Ayki Ders Saati</div>
+          </div>
+          <div class="stat-card" style="border-color: rgba(14, 116, 144, 0.3);">
+            <div class="stat-value" id="samUpcomingCount" style="color: #0e7490; font-size: 1.25rem;">0</div>
+            <div class="stat-label">Gelecek Planlı Ders</div>
+          </div>
+        </div>
+
+        <!-- Monthly Distribution Table -->
+        <div style="margin-bottom: 20px;">
+          <h4 style="margin: 0 0 8px 0; font-size: 0.95rem;">📅 Aylık Ders Dağılımı</h4>
+          <div id="samMonthlyTable" class="analytics-table" style="margin-bottom: 0;"></div>
+        </div>
+
+        <!-- Upcoming Lessons -->
+        <div style="margin-bottom: 20px;">
+          <h4 style="margin: 0 0 8px 0; font-size: 0.95rem; display: flex; align-items: center; justify-content: space-between;">
+            <span>⏳ Gelecek Planlanan Dersler</span>
+            <span id="samUpcomingBadge" style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted);"></span>
+          </h4>
+          <div id="samUpcomingList"></div>
+        </div>
+
+        <!-- Past Lessons History -->
+        <div style="margin-bottom: 16px;">
+          <h4 style="margin: 0 0 8px 0; font-size: 0.95rem; display: flex; align-items: center; justify-content: space-between;">
+            <span>✅ Geçmiş Tamamlanan Dersler</span>
+            <span id="samPastBadge" style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted);"></span>
+          </h4>
+          <div id="samPastList"></div>
+        </div>
+      </div>
     </div>
   </div>
 
