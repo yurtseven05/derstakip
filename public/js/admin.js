@@ -77,7 +77,12 @@ async function loadConfig() {
   try { const r=await fetch(`${API}/api/config/schedule`); const d=await r.json(); SCHEDULE=d.schedule; defaultDuration=d.defaultDuration||60; } catch(e) {}
 }
 async function loadBlocks() {
-  try { const r=await fetch(`${API}/api/blocks`); const d=await r.json(); blocks=d.blocks||[]; } catch(e) {}
+  try {
+    const headers = adminPassword ? { 'X-Admin-Password': adminPassword } : {};
+    const r = await fetch(`${API}/api/blocks`, { headers });
+    const d = await r.json();
+    blocks = d.blocks || [];
+  } catch(e) {}
 }
 async function loadRequests() {
   try { const r=await fetch(`${API}/api/requests`,{headers:{'X-Admin-Password':adminPassword}}); const d=await r.json(); requests=d.requests||[]; renderRequests(); } catch(e) {}
@@ -748,7 +753,7 @@ function renderRequests() {
 }
 
 async function approveWithCode(id) {
-  const code = prompt('Bu öğrenci için veli/öğrenci takip kodu belirlemek ister misiniz? (Örn: Z4 veya 115 - Boş bırakabilirsiniz):');
+  const code = prompt('Bu öğrenci için takvim etiketi / takip kodu belirlemek ister misiniz?\n(Örn: Z4 veya 115 - Öğrenci takviminde "Dolu [Z4]" olarak görünecektir. Boş bırakırsanız sadece "Dolu" yazar):');
   if (code === null) return; // User cancelled
   await updateReqStatus(id, 'approved', (code || '').trim().toUpperCase());
 }

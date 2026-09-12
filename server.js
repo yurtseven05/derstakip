@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
@@ -142,7 +142,26 @@ app.put('/api/config/schedule', (req, res) => {
 
 // 2. Blocks
 app.get('/api/blocks', (req, res) => {
-  res.json({ blocks: storage.getBlocks() });
+  const allBlocks = storage.getBlocks();
+  const isAdmin = verifyAdmin(req);
+
+  // Admin sees full data (Student Name + Code)
+  if (isAdmin) {
+    return res.json({ blocks: allBlocks });
+  }
+
+  // Public / Student View (KVKK / GDPR Protection):
+  // Students CANNOT see names of other students. They only see that it is 'Dolu' and the tag/code.
+  const sanitized = allBlocks.map(b => ({
+    id: b.id,
+    date: b.date,
+    startTime: b.startTime,
+    endTime: b.endTime,
+    studentCode: b.studentCode || '',
+    label: b.studentCode ? `Dolu [${b.studentCode}]` : 'Dolu'
+  }));
+
+  res.json({ blocks: sanitized });
 });
 
 app.post('/api/blocks', (req, res) => {

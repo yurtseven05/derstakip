@@ -307,9 +307,9 @@ function buildLabelColorMap() {
   const map = {};
   let idx = 0;
   blocks.forEach(b => {
-    const lbl = (b.label || '').trim().toLowerCase();
-    if (lbl && !(lbl in map)) {
-      map[lbl] = idx % STUDENT_COLOR_COUNT;
+    const key = (b.studentCode || '').trim().toLowerCase();
+    if (key && !(key in map)) {
+      map[key] = idx % STUDENT_COLOR_COUNT;
       idx++;
     }
   });
@@ -356,11 +356,12 @@ function renderWeekly(){
     dayBlks.forEach(b=>{
       const top=(toMin(b.startTime)-toMin(fs))/30*CELL_H;
       const height=(toMin(b.endTime)-toMin(b.startTime))/30*CELL_H;
-      const lbl=(b.label||'').trim().toLowerCase();
-      const ci=lbl in labelColors ? labelColors[lbl] : '';
+      const tag = (b.studentCode || '').trim();
+      const ci = tag && tag.toLowerCase() in labelColors ? labelColors[tag.toLowerCase()] : '';
       h+='<div class="cal-block closed-block" style="top:' + top + 'px;height:' + height + 'px"' + (ci!==''?' data-color-index="'+ci+'"':'') + '>';
       h+='<span class="cb-time">' + esc(b.startTime) + '–' + esc(b.endTime) + '</span>';
-      h+='<span class="cb-label">' + esc(b.label||'Kapalı') + '</span>';
+      const badge = tag ? ' <span class="cb-badge" style="background:rgba(255,255,255,0.22);padding:1px 5px;border-radius:3px;font-weight:700;font-size:0.75rem;">[' + esc(tag) + ']</span>' : '';
+      h+='<span class="cb-label">Dolu' + badge + '</span>';
       h+='</div>';
     });
 
