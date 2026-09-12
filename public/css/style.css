@@ -6,66 +6,67 @@
 
 /* ---- CSS Custom Properties ---- */
 :root {
-  /* Vibrant & Modern Palette:
-     #49083A - Derin Mürdüm / Deep Plum (Metin, Başlıklar, Çerçeveler)
-     #FFA6EC - Tatlı Pastel Pembe / Soft Pink (Ferah Arka Plan Teması)
-     #CA1C86 - Canlı Fuşya-Gül / Vibrant Berry-Rose (İkincil Vurgu, Rozetler, Kapalı Bloklar)
-     #FA4600 - Canlı Turuncu / Electric Orange (Harekete Geç / CTA / Butonlar)
+  /* High-Contrast Corporate & Dynamic Palette:
+     #0F172A - Koyu Gece Laciverti / Deep Navy Slate (Metin, Başlıklar, Çerçeveler)
+     #E0F2FE - Ferah Buz Mavisi / Soft Ice Blue (Aydınlık Zemin & Arka Plan)
+     #1E3A8A - Asil Kraliyet Mavisi / Royal Blue (İkincil Vurgu, Kartlar, Rozetler)
+     #EA580C - Canlı Enerjik Turuncu / Vibrant Orange (Harekete Geç / CTA / Butonlar)
+     #64748B - Dengeleyici Arduvaz Grisi / Slate Gray (İkincil Metinler & Çizgiler)
   */
-  --bg-primary: #FFF2FB;
-  --bg-secondary: #FFE5F7;
-  --bg-tertiary: #FFD4F3;
+  --bg-primary: #F0F7FF;
+  --bg-secondary: #E0F2FE;
+  --bg-tertiary: #BAE6FD;
   --bg-card: #FFFFFF;
-  --bg-card-hover: #FFF5FC;
-  --bg-elevated: #FFE0F6;
-  --bg-glass: rgba(73, 8, 58, 0.04);
-  --border-glass: rgba(73, 8, 58, 0.12);
-  --border-active: rgba(202, 28, 134, 0.35);
+  --bg-card-hover: #F8FAFC;
+  --bg-elevated: #E2E8F0;
+  --bg-glass: rgba(15, 23, 42, 0.04);
+  --border-glass: rgba(15, 23, 42, 0.12);
+  --border-active: rgba(30, 58, 138, 0.35);
 
-  --text-primary: #49083A;
-  --text-secondary: #6B1B57;
-  --text-muted: #8F4A7B;
-  --text-gold: #FA4600;
-  --text-cream: #FFF2FB;
+  --text-primary: #0F172A;
+  --text-secondary: #334155;
+  --text-muted: #64748B;
+  --text-gold: #EA580C;
+  --text-cream: #F8FAFC;
 
-  /* Primary Accent & CTA: Electric Orange #FA4600 */
-  --accent-primary: #FA4600;
-  --accent-primary-glow: rgba(250, 70, 0, 0.25);
+  /* Primary Accent & CTA: Vibrant Orange #EA580C */
+  --accent-primary: #EA580C;
+  --accent-primary-glow: rgba(234, 88, 12, 0.28);
 
-  /* Secondary Accent / Closed Slots / Badges: Vibrant Berry #CA1C86 */
-  --accent-brown: #CA1C86;
-  --accent-brown-glow: rgba(202, 28, 134, 0.25);
-  --accent-brown-bg: rgba(202, 28, 134, 0.1);
+  /* Secondary Accent / Closed Slots / Badges: Royal Blue #1E3A8A */
+  --accent-brown: #1E3A8A;
+  --accent-brown-glow: rgba(30, 58, 138, 0.28);
+  --accent-brown-bg: rgba(30, 58, 138, 0.1);
 
-  /* Deep Plum Accents #49083A */
-  --accent-green: #CA1C86;
-  --accent-green-glow: rgba(202, 28, 134, 0.2);
-  --accent-green-bg: rgba(202, 28, 134, 0.08);
+  /* Supporting Accents */
+  --accent-green: #1E3A8A;
+  --accent-green-glow: rgba(30, 58, 138, 0.2);
+  --accent-green-bg: rgba(30, 58, 138, 0.08);
 
-  --accent-red: #D61B3C;
-  --accent-red-glow: rgba(214, 27, 60, 0.2);
-  --accent-red-bg: rgba(214, 27, 60, 0.08);
+  --accent-red: #DC2626;
+  --accent-red-glow: rgba(220, 38, 38, 0.2);
+  --accent-red-bg: rgba(220, 38, 38, 0.08);
 
-  --accent-amber: #FA4600;
-  --accent-amber-glow: rgba(250, 70, 0, 0.25);
-  --accent-amber-bg: rgba(250, 70, 0, 0.08);
+  --accent-amber: #EA580C;
+  --accent-amber-glow: rgba(234, 88, 12, 0.25);
+  --accent-amber-bg: rgba(234, 88, 12, 0.08);
 
   /* Student Color Palette — Harmonious vibrant hues */
-  --student-0: #FA4600; --student-0-bg: rgba(250, 70, 0, 0.14);   /* Electric Orange */
-  --student-1: #CA1C86; --student-1-bg: rgba(202, 28, 134, 0.14);  /* Vibrant Berry */
-  --student-2: #49083A; --student-2-bg: rgba(73, 8, 58, 0.12);    /* Deep Plum */
-  --student-3: #9C1565; --student-3-bg: rgba(156, 21, 101, 0.14);  /* Dark Rose */
-  --student-4: #E63B00; --student-4-bg: rgba(230, 59, 0, 0.14);   /* Bright Flame */
-  --student-5: #6B1B57; --student-5-bg: rgba(107, 27, 87, 0.14);   /* Muted Plum */
-  --student-6: #B51275; --student-6-bg: rgba(181, 18, 117, 0.14);  /* Magenta */
-  --student-7: #FF6622; --student-7-bg: rgba(255, 102, 34, 0.14);  /* Tangerine */
-  --student-8: #800D58; --student-8-bg: rgba(128, 13, 88, 0.14);   /* Bordeaux */
-  --student-9: #D42B00; --student-9-bg: rgba(212, 43, 0, 0.14);   /* Vermillion */
+  --student-0: #EA580C; --student-0-bg: rgba(234, 88, 12, 0.14);   /* Vibrant Orange */
+  --student-1: #1E3A8A; --student-1-bg: rgba(30, 58, 138, 0.14);   /* Royal Blue */
+  --student-2: #0F172A; --student-2-bg: rgba(15, 23, 42, 0.12);    /* Deep Navy */
+  --student-3: #2563EB; --student-3-bg: rgba(37, 99, 235, 0.14);   /* Blue */
+  --student-4: #D97706; --student-4-bg: rgba(217, 119, 6, 0.14);   /* Amber */
+  --student-5: #475569; --student-5-bg: rgba(71, 85, 105, 0.14);   /* Slate */
+  --student-6: #7C3AED; --student-6-bg: rgba(124, 58, 237, 0.14);  /* Violet */
+  --student-7: #F97316; --student-7-bg: rgba(249, 115, 22, 0.14);  /* Orange */
+  --student-8: #0369A1; --student-8-bg: rgba(3, 105, 161, 0.14);   /* Sky Dark */
+  --student-9: #BE123C; --student-9-bg: rgba(190, 18, 60, 0.14);   /* Rose */
 
   /* Gradients */
-  --gradient-hero: linear-gradient(135deg, #FA4600 0%, #CA1C86 100%);
-  --gradient-card: linear-gradient(135deg, rgba(202, 28, 134, 0.06) 0%, rgba(250, 70, 0, 0.03) 100%);
-  --gradient-warm: linear-gradient(135deg, #CA1C86, #FA4600);
+  --gradient-hero: linear-gradient(135deg, #EA580C 0%, #1E3A8A 100%);
+  --gradient-card: linear-gradient(135deg, rgba(30, 58, 138, 0.06) 0%, rgba(234, 88, 12, 0.03) 100%);
+  --gradient-warm: linear-gradient(135deg, #1E3A8A, #EA580C);
 
   /* Spacing */
   --spacing-xs: 4px;
@@ -119,17 +120,17 @@ body {
   min-height: 100vh;
   overflow-x: hidden;
   background-image:
-    radial-gradient(ellipse at 20% 0%, rgba(255, 166, 236, 0.45) 0%, transparent 60%),
-    radial-gradient(ellipse at 85% 100%, rgba(202, 28, 134, 0.08) 0%, transparent 50%),
-    radial-gradient(ellipse at 90% 10%, rgba(250, 70, 0, 0.05) 0%, transparent 40%);
+    radial-gradient(ellipse at 15% 0%, rgba(224, 242, 254, 0.7) 0%, transparent 60%),
+    radial-gradient(ellipse at 85% 100%, rgba(30, 58, 138, 0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 90% 10%, rgba(234, 88, 12, 0.04) 0%, transparent 40%);
 }
 
-/* Manuscript paper texture overlay */
+/* Texture overlay */
 body::before {
   content: '';
   position: fixed;
   inset: 0;
-  background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%2349083A' fill-opacity='0.015'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%230F172A' fill-opacity='0.012'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
   pointer-events: none;
   z-index: 0;
 }
@@ -150,7 +151,7 @@ body::before {
   z-index: 100;
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
-  background: rgba(255, 242, 251, 0.88);
+  background: rgba(240, 247, 255, 0.88);
   border-bottom: 1px solid var(--border-glass);
   padding: var(--spacing-md) 0;
 }
@@ -468,23 +469,23 @@ body::before {
   font-size: 0.8rem;
   font-weight: 500;
   color: var(--text-muted);
-  border-bottom: 1px solid rgba(73, 8, 58, 0.08);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
 }
 .cal-col {
   position: relative;
-  border-right: 1px solid rgba(73, 8, 58, 0.1);
+  border-right: 1px solid rgba(15, 23, 42, 0.1);
 }
 .cal-cell {
-  border-bottom: 1px solid rgba(73, 8, 58, 0.08);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
   transition: all var(--transition-fast);
 }
 .cal-cell.off {
   background: repeating-linear-gradient(
     -45deg,
-    rgba(73, 8, 58, 0.22),
-    rgba(73, 8, 58, 0.22) 6px,
-    rgba(73, 8, 58, 0.35) 6px,
-    rgba(73, 8, 58, 0.35) 12px
+    rgba(15, 23, 42, 0.22),
+    rgba(15, 23, 42, 0.22) 6px,
+    rgba(15, 23, 42, 0.35) 6px,
+    rgba(15, 23, 42, 0.35) 12px
   );
   cursor: not-allowed;
   opacity: 1;
@@ -499,10 +500,10 @@ body::before {
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: inset 0 0 0 1px rgba(202, 28, 134, 0.22);
+  box-shadow: inset 0 0 0 1px rgba(30, 58, 138, 0.2);
 }
 .cal-cell.avail:hover {
-  background: rgba(255, 166, 236, 0.28);
+  background: rgba(224, 242, 254, 0.4);
   box-shadow: inset 0 0 0 1.5px var(--accent-primary);
 }
 .cal-cell.avail .cell-lbl {
@@ -510,7 +511,7 @@ body::before {
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.02em;
-  opacity: 0.85;
+  opacity: 0.9;
   transition: opacity var(--transition-fast), transform var(--transition-fast);
 }
 .cal-cell.avail:hover .cell-lbl {
@@ -523,7 +524,7 @@ body::before {
   cursor: cell;
 }
 .cal-cell.selecting {
-  background: rgba(250, 70, 0, 0.3) !important;
+  background: rgba(234, 88, 12, 0.3) !important;
   border-left: 2px solid var(--accent-primary) !important;
   border-right: 2px solid var(--accent-primary) !important;
 }
@@ -2192,13 +2193,13 @@ body::before {
   bottom: 0;
   left: 0;
   right: 0;
-  background: rgba(255, 242, 251, 0.95);
-  border-top: 1px solid rgba(73, 8, 58, 0.1);
+  background: rgba(240, 247, 255, 0.95);
+  border-top: 1px solid rgba(15, 23, 42, 0.1);
   padding: 10px 16px;
   z-index: 90;
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  box-shadow: 0 -4px 16px rgba(73, 8, 58, 0.08);
+  box-shadow: 0 -4px 16px rgba(15, 23, 42, 0.08);
 }
 @media (max-width: 768px) {
   .mobile-quick-book-bar {
@@ -2211,6 +2212,6 @@ body::before {
     padding: 8px 18px;
     border-radius: var(--radius-full);
     font-size: 0.85rem;
-    box-shadow: 0 2px 8px rgba(250, 70, 0, 0.3);
+    box-shadow: 0 2px 8px rgba(234, 88, 12, 0.35);
   }
 }
