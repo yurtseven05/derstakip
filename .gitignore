@@ -1,4 +1,4 @@
-﻿# Dependencies
+# Dependencies
 node_modules/
 package-lock.json
 
@@ -10,6 +10,8 @@ package-lock.json
 # Backups & data dumps
 *.bak
 data/*.bak
+data/backups/*.json
+!data/backups/.gitkeep
 
 # Logs
 npm-debug.log*

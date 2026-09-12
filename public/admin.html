@@ -46,6 +46,7 @@
         <button class="admin-tab active" data-panel="calendarPanel">📅 Takvim</button>
         <button class="admin-tab" data-panel="recurringPanel">🔄 Taahhütlü</button>
         <button class="admin-tab" data-panel="analyticsPanel">📊 Analiz</button>
+        <button class="admin-tab" data-panel="backupPanel">💾 Veri & Yedek</button>
       </div>
     </section>
 
@@ -117,6 +118,66 @@
         <p class="hint-text">Aylık ders sayısı, toplam saat ve öğrenci bazlı istatistikler.</p>
         <div id="analyticsContent">
           <div class="empty-state"><div class="empty-icon">📊</div><p>Yükleniyor...</p></div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Backup & Data Persistence Panel -->
+    <div class="admin-panel" id="backupPanel">
+      <section class="container" style="margin-top: 24px;">
+        <div class="section-header">
+          <h2>💾 Veri Güvenliği, Yedekleme & Arşiv</h2>
+          <button class="btn btn-primary btn-sm" id="exportDataBtnTop">📥 Tam Yedeği İndir (JSON)</button>
+        </div>
+        <p class="hint-text">Tüm dersleriniz, öğrenci kayıtlarınız ve ayarlarınız koruma altındadır. İster tek tıkla bilgisayarınıza yedek indirin, ister yanlışlıkla silinen dersleri geri getirin.</p>
+
+        <!-- Status Cards -->
+        <div class="admin-stats" style="margin-bottom: 24px;">
+          <div class="stat-card green">
+            <div class="stat-value" style="font-size: 1.2rem;">🛡️ Aktif</div>
+            <div class="stat-label">Bozulmaz Atomik Yazma</div>
+          </div>
+          <div class="stat-card primary">
+            <div class="stat-value" style="font-size: 1.2rem;" id="backupSnapshotsCount">0</div>
+            <div class="stat-label">Otomatik Snapshot Yedek</div>
+          </div>
+          <div class="stat-card amber">
+            <div class="stat-value" style="font-size: 1.2rem;" id="archivedBlocksCount">0</div>
+            <div class="stat-label">Arşivlenmiş / Silinmiş Kayıt</div>
+          </div>
+        </div>
+
+        <!-- Actions Row -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 30px;">
+          <div style="background: var(--bg-card); border: 1px solid var(--border-glass); border-radius: var(--radius-md); padding: 20px;">
+            <h3 style="margin-bottom: 8px; font-size: 1.05rem;">📥 Bilgisayara Tam Yedek İndir</h3>
+            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 16px;">
+              Tüm takvim bloklarını, onaylanan/bekleyen ders taleplerini ve sistem ayarlarını tek bir JSON dosyasında anında bilgisayarınıza indirin.
+            </p>
+            <button class="btn btn-primary" id="downloadBackupBtn" style="width: 100%;">
+              💾 Tam Veri Yedeği İndir (.json)
+            </button>
+          </div>
+
+          <div style="background: var(--bg-card); border: 1px solid var(--border-glass); border-radius: var(--radius-md); padding: 20px;">
+            <h3 style="margin-bottom: 8px; font-size: 1.05rem;">📤 Yedekten Geri Yükle</h3>
+            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 16px;">
+              Daha önce indirdiğiniz bir sistem yedeğini sisteme yükleyin. Yükleme öncesi mevcut verilerinizin otomatik anlık kopyası alınır.
+            </p>
+            <input type="file" id="importBackupInput" accept=".json" style="display: none;">
+            <button class="btn btn-secondary" id="importBackupBtn" style="width: 100%;">
+              📂 Yedek Dosyası Seç & Geri Yükle
+            </button>
+          </div>
+        </div>
+
+        <!-- Archive / Deleted Lessons Section -->
+        <div class="section-header" style="margin-top: 32px;">
+          <h3>🗄️ Arşiv & Çöp Kutusu (Silinen Dersler Asla Kaybolmaz)</h3>
+        </div>
+        <p class="hint-text">Geçmişte silinen veya taahhüdü kaldırılan dersler burada saklanır. İhtiyaç halinde tek tıkla takvime geri getirebilirsiniz.</p>
+        <div id="archiveList">
+          <div class="empty-state"><div class="empty-icon">🗄️</div><p>Yükleniyor...</p></div>
         </div>
       </section>
     </div>

@@ -375,6 +375,7 @@ function setupListeners() {
     document.getElementById(tab.dataset.panel).classList.add('active');
     if(tab.dataset.panel==='analyticsPanel') loadAnalytics();
     if(tab.dataset.panel==='recurringPanel') loadRecurringGroups();
+    if(tab.dataset.panel==='backupPanel') loadBackupPanel();
   }));
 
   document.querySelectorAll('.view-toggle button').forEach(b => b.addEventListener('click',()=>{
@@ -388,6 +389,20 @@ function setupListeners() {
   document.getElementById('recurringBtn').addEventListener('click',openRecurringModal);
   document.getElementById('recurringBtn2').addEventListener('click',openRecurringModal);
   document.getElementById('resetRecurringBtn').addEventListener('click',resetAllRecurringGroups);
+  
+  // Backup & Restore listeners
+  const expBtn1 = document.getElementById('exportDataBtnTop');
+  if(expBtn1) expBtn1.addEventListener('click', exportFullBackup);
+  const expBtn2 = document.getElementById('downloadBackupBtn');
+  if(expBtn2) expBtn2.addEventListener('click', exportFullBackup);
+
+  const impBtn = document.getElementById('importBackupBtn');
+  const impInput = document.getElementById('importBackupInput');
+  if(impBtn && impInput) {
+    impBtn.addEventListener('click', () => impInput.click());
+    impInput.addEventListener('change', handleBackupImport);
+  }
+
   const pwBtn = document.getElementById('openPasswordBtn');
   if(pwBtn) pwBtn.addEventListener('click', openPasswordModal);
 
@@ -756,8 +771,135 @@ function closePasswordModal() {
   document.body.style.overflow = '';
 }
 
+// ---- Backup, Restore & Archive ----
+async function exportFullBackup() {
+  try {
+    const res = await fetch(`${API}/api/admin/export-data`, {
+      headers: { 'X-Admin-Password': adminPassword }
+    });
+    if (!res.ok) throw new Error('Yedek indirilemedi');
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const dateStr = fmtDate(new Date());
+    a.download = `sibelkiral_takvim_tam_yedek_${dateStr}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+    toast('Tüm takvim ve öğrenci verileri bilgisayarınıza indirildi ✓', 'success');
+  } catch (err) {
+    toast('Yedek indirme başarısız!', 'error');
+  }
+}
+
+async function handleBackupImport(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  if (!confirm(`"${file.name}" adlı yedek dosyası sisteme yüklenecektir. Mevcut verilerin anlık yedeği otomatik alınacaktır. Onaylıyor musunuz?`)) {
+    e.target.value = '';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = async (event) => {
+    try {
+      const data = JSON.parse(event.target.result);
+      const res = await fetch(`${API}/api/admin/import-data`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Admin-Password': adminPassword
+        },
+        body: JSON.stringify(data)
+      });
+      const resData = await res.json();
+      if (res.ok) {
+        toast('Yedek başarıyla geri yüklendi ✓', 'success');
+        await loadConfig();
+        await loadBlocks();
+        await loadRequests();
+        render();
+        stats();
+        loadBackupPanel();
+      } else {
+        toast(resData.error || 'Geri yükleme başarısız!', 'error');
+      }
+    } catch (err) {
+      toast('Geçersiz JSON dosyası formatı!', 'error');
+    }
+    e.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
+async function loadBackupPanel() {
+  const c = document.getElementById('archiveList');
+  if (!c) return;
+  try {
+    const [archRes, bkpRes] = await Promise.all([
+      fetch(`${API}/api/admin/archive`, { headers: { 'X-Admin-Password': adminPassword } }),
+      fetch(`${API}/api/admin/backups-list`, { headers: { 'X-Admin-Password': adminPassword } })
+    ]);
+    const archiveData = archRes.ok ? await archRes.json() : { deletedBlocks: [] };
+    const backupData = bkpRes.ok ? await bkpRes.json() : { backups: [] };
+
+    const snapCountEl = document.getElementById('backupSnapshotsCount');
+    if (snapCountEl) snapCountEl.textContent = (backupData.backups || []).length;
+    const archCountEl = document.getElementById('archivedBlocksCount');
+    if (archCountEl) archCountEl.textContent = (archiveData.deletedBlocks || []).length;
+
+    const deletedBlocks = (archiveData.deletedBlocks || []).sort((a,b) => (b.archivedAt || '').localeCompare(a.archivedAt || ''));
+
+    if (!deletedBlocks.length) {
+      c.innerHTML = '<div class="empty-state"><div class="empty-icon">🗄️</div><p>Henüz silinmiş veya arşivlenmiş ders kaydı bulunmuyor. Takvimden silinen tüm dersler burada güvenle saklanır.</p></div>';
+      return;
+    }
+
+    let h = '<div class="analytics-table"><table><thead><tr><th>Tarih</th><th>Saat</th><th>Öğrenci / Kod</th><th>Silinme Nedeni / Zamanı</th><th>İşlem</th></tr></thead><tbody>';
+    deletedBlocks.forEach(b => {
+      const archDate = b.archivedAt ? new Date(b.archivedAt).toLocaleString('tr-TR') : '—';
+      const codeBadge = b.studentCode ? ` <small style="background:rgba(255,255,255,0.2);padding:1px 4px;border-radius:3px;">[${esc(b.studentCode)}]</small>` : '';
+      h += `<tr>
+        <td><strong>${esc(b.date)}</strong></td>
+        <td>${esc(b.startTime)}–${esc(b.endTime)}</td>
+        <td><strong>${esc(b.label || 'İsimsiz')}</strong>${codeBadge}</td>
+        <td><small style="color:var(--text-muted);">${esc(b.archiveReason || 'Silindi')} (${archDate})</small></td>
+        <td><button class="btn btn-primary btn-sm" onclick="restoreArchivedBlock('${b.id}')">🔄 Geri Yükle</button></td>
+      </tr>`;
+    });
+    h += '</tbody></table></div>';
+    c.innerHTML = h;
+  } catch (err) {
+    c.innerHTML = '<p style="color:var(--accent-red);">Arşiv yüklenirken hata oluştu.</p>';
+  }
+}
+
+async function restoreArchivedBlock(id) {
+  if (!confirm('Bu ders kaydını takvime geri yüklemek istediğinize emin misiniz?')) return;
+  try {
+    const res = await fetch(`${API}/api/admin/restore-block/${id}`, {
+      method: 'POST',
+      headers: { 'X-Admin-Password': adminPassword }
+    });
+    const d = await res.json();
+    if (res.ok) {
+      toast('Ders başarıyla takvime geri yüklendi ✓', 'success');
+      await loadBlocks();
+      render();
+      stats();
+      loadBackupPanel();
+    } else {
+      toast(d.error || 'Geri yükleme başarısız!', 'error');
+    }
+  } catch (err) {
+    toast('Bağlantı hatası.', 'error');
+  }
+}
+
 // Globals
 window.deleteBlock=deleteBlock; window.updateReqStatus=updateReqStatus; window.deleteReq=deleteReq;
+window.restoreArchivedBlock=restoreArchivedBlock;
 window.goWeek=goWeek; window.closeBlockModal=closeBlockModal; window.closeRecurringModal=closeRecurringModal;
 window.deleteRecurringGroup=deleteRecurringGroup; window.resetAllRecurringGroups=resetAllRecurringGroups;
 window.openPasswordModal=openPasswordModal; window.closePasswordModal=closePasswordModal;

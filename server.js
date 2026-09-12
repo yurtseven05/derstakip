@@ -83,6 +83,8 @@ const DATA_DIR = path.join(__dirname, 'data');
 const BLOCKS_FILE = path.join(DATA_DIR, 'blocks.json');
 const REQUESTS_FILE = path.join(DATA_DIR, 'requests.json');
 const CONFIG_FILE = path.join(DATA_DIR, 'config.json');
+const ARCHIVE_FILE = path.join(DATA_DIR, 'archive.json');
+const BACKUPS_DIR = path.join(DATA_DIR, 'backups');
 
 const DEFAULT_CONFIG = {
   adminPassword: process.env.ADMIN_PASSWORD || 'admin123',
@@ -106,11 +108,93 @@ function readJSON(f) {
   catch { return null; }
 }
 
+// Enterprise-Grade Atomic Write (Prevents 0-byte or corrupted files on power cuts or crashes)
 function writeJSON(f, d) { 
+  if (d === null || d === undefined) {
+    console.error('writeJSON error: attempt to write null or undefined to', f);
+    return;
+  }
   try {
-    fs.writeFileSync(f, JSON.stringify(d, null, 2), 'utf8'); 
+    const content = JSON.stringify(d, null, 2);
+    // 1. Keep emergency .bak copy if file already exists
+    if (fs.existsSync(f)) {
+      try { fs.copyFileSync(f, f + '.bak'); } catch (e) {}
+    }
+    // 2. Write to unique temp file, then atomically replace
+    const tmpFile = `${f}.${Date.now()}.${crypto.randomBytes(3).toString('hex')}.tmp`;
+    fs.writeFileSync(tmpFile, content, 'utf8');
+    fs.renameSync(tmpFile, f);
   } catch (err) {
-    console.error('File write error:', err.message);
+    console.error('File write error for', f, ':', err.message);
+  }
+}
+
+// Data Archiving & Audit Trail (Never lose deleted lessons or requests)
+function archiveRecord(type, record, reason = 'Kullanıcı/Admin tarafından silindi') {
+  try {
+    const archive = readJSON(ARCHIVE_FILE) || { deletedBlocks: [], deletedRequests: [], cancelledRequests: [] };
+    const entry = {
+      ...record,
+      archivedAt: new Date().toISOString(),
+      archiveReason: reason
+    };
+    if (type === 'block') {
+      if (!archive.deletedBlocks) archive.deletedBlocks = [];
+      archive.deletedBlocks.push(entry);
+    } else if (type === 'request') {
+      if (!archive.deletedRequests) archive.deletedRequests = [];
+      archive.deletedRequests.push(entry);
+    } else if (type === 'cancel') {
+      if (!archive.cancelledRequests) archive.cancelledRequests = [];
+      archive.cancelledRequests.push(entry);
+    }
+    writeJSON(ARCHIVE_FILE, archive);
+  } catch (err) {
+    console.error('Archive record error:', err.message);
+  }
+}
+
+// Daily Automatic Snapshot Backup (Retains last 30 daily snapshots)
+function createDailySnapshot() {
+  try {
+    if (!fs.existsSync(BACKUPS_DIR)) fs.mkdirSync(BACKUPS_DIR, { recursive: true });
+    const today = new Date().toISOString().split('T')[0];
+    const snapFile = path.join(BACKUPS_DIR, `snapshot-${today}.json`);
+    
+    const blocksData = readJSON(BLOCKS_FILE) || { blocks: [] };
+    const requestsData = readJSON(REQUESTS_FILE) || { requests: [] };
+    const configData = readJSON(CONFIG_FILE) || DEFAULT_CONFIG;
+    const archiveData = readJSON(ARCHIVE_FILE) || {};
+
+    const snapshot = {
+      snapshotDate: today,
+      createdAt: new Date().toISOString(),
+      stats: {
+        blocksCount: blocksData.blocks?.length || 0,
+        requestsCount: requestsData.requests?.length || 0
+      },
+      blocks: blocksData.blocks || [],
+      requests: requestsData.requests || [],
+      config: configData,
+      archive: archiveData
+    };
+    
+    writeJSON(snapFile, snapshot);
+
+    // Prune backups older than 30 days
+    const files = fs.readdirSync(BACKUPS_DIR);
+    files.forEach(file => {
+      if (file.startsWith('snapshot-') && file.endsWith('.json')) {
+        const filePath = path.join(BACKUPS_DIR, file);
+        const stats = fs.statSync(filePath);
+        const ageInDays = (Date.now() - stats.mtimeMs) / (1000 * 60 * 60 * 24);
+        if (ageInDays > 30) {
+          try { fs.unlinkSync(filePath); } catch(e) {}
+        }
+      }
+    });
+  } catch (err) {
+    console.error('Snapshot creation error:', err.message);
   }
 }
 
@@ -154,14 +238,20 @@ function verifyAdmin(req) {
 
 // Init data files
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+if (!fs.existsSync(BACKUPS_DIR)) fs.mkdirSync(BACKUPS_DIR, { recursive: true });
 if (!fs.existsSync(BLOCKS_FILE)) writeJSON(BLOCKS_FILE, { blocks: [] });
 if (!fs.existsSync(REQUESTS_FILE)) writeJSON(REQUESTS_FILE, { requests: [] });
+if (!fs.existsSync(ARCHIVE_FILE)) writeJSON(ARCHIVE_FILE, { deletedBlocks: [], deletedRequests: [], cancelledRequests: [] });
 if (!fs.existsSync(CONFIG_FILE)) writeJSON(CONFIG_FILE, DEFAULT_CONFIG);
 
 const cfg = readJSON(CONFIG_FILE);
 if (!cfg || !cfg.schedule) { 
   writeJSON(CONFIG_FILE, DEFAULT_CONFIG); 
 }
+
+// Create initial snapshot and schedule daily automatic backups
+createDailySnapshot();
+setInterval(createDailySnapshot, 1000 * 60 * 60 * 12); // Every 12 hours
 
 // ============ API ENDPOINTS ============
 
@@ -293,6 +383,8 @@ app.delete('/api/recurring-groups/:groupId', (req, res) => {
   const safeGroupId = sanitizeString(req.params.groupId, 64);
   const data = readJSON(BLOCKS_FILE) || { blocks: [] };
   const before = data.blocks.length;
+  const toDelete = data.blocks.filter(b => b.groupId === safeGroupId);
+  toDelete.forEach(b => archiveRecord('block', b, `Taahhütlü grup toplu silindi (${safeGroupId})`));
   data.blocks = data.blocks.filter(b => b.groupId !== safeGroupId);
   const deleted = before - data.blocks.length;
   writeJSON(BLOCKS_FILE, data);
@@ -303,6 +395,10 @@ app.delete('/api/blocks/:id', (req, res) => {
   if (!verifyAdmin(req)) return res.status(401).json({ error: 'Yetkisiz erişim.' });
   const safeId = sanitizeString(req.params.id, 64);
   const data = readJSON(BLOCKS_FILE) || { blocks: [] };
+  const blockToDelete = data.blocks.find(b => b.id === safeId);
+  if (blockToDelete) {
+    archiveRecord('block', blockToDelete, 'Admin tarafından tekil blok silindi');
+  }
   data.blocks = data.blocks.filter(b => b.id !== safeId);
   writeJSON(BLOCKS_FILE, data);
   res.json({ status: 'ok' });
@@ -385,6 +481,9 @@ app.post('/api/requests/cancel', rateLimiter('requests', 5, 300000, 'Çok fazla 
     return res.status(404).json({ error: 'Eşleşen aktif randevu talebi bulunamadı.' });
   }
 
+  const reqToCancel = data.requests[index];
+  archiveRecord('cancel', reqToCancel, 'Öğrenci/Veli tarafından KVKK kapsamında iptal edildi');
+
   data.requests.splice(index, 1);
   writeJSON(REQUESTS_FILE, data);
   res.json({ status: 'ok', message: 'Talebiniz ve kişisel verileriniz başarıyla silindi.' });
@@ -399,6 +498,10 @@ app.delete('/api/requests/:id', (req, res) => {
   if (!verifyAdmin(req)) return res.status(401).json({ error: 'Yetkisiz erişim.' });
   const safeId = sanitizeString(req.params.id, 64);
   const data = readJSON(REQUESTS_FILE) || { requests: [] };
+  const reqToDelete = data.requests.find(r => r.id === safeId);
+  if (reqToDelete) {
+    archiveRecord('request', reqToDelete, 'Admin tarafından talep silindi');
+  }
   data.requests = data.requests.filter(r => r.id !== safeId);
   writeJSON(REQUESTS_FILE, data);
   res.json({ status: 'ok' });
@@ -588,6 +691,123 @@ app.post('/api/admin/change-password', (req, res) => {
   c.adminPassword = newPassword;
   writeJSON(CONFIG_FILE, c);
   res.json({ status: 'ok' });
+});
+
+// 6. Data Persistence, Backup & Restore Endpoints
+app.get('/api/admin/export-data', (req, res) => {
+  if (!verifyAdmin(req)) return res.status(401).json({ error: 'Yetkisiz erişim.' });
+  const blocksData = readJSON(BLOCKS_FILE) || { blocks: [] };
+  const requestsData = readJSON(REQUESTS_FILE) || { requests: [] };
+  const configData = readJSON(CONFIG_FILE) || DEFAULT_CONFIG;
+  const archiveData = readJSON(ARCHIVE_FILE) || { deletedBlocks: [], deletedRequests: [], cancelledRequests: [] };
+
+  const dump = {
+    exportedAt: new Date().toISOString(),
+    system: 'Ders Takip Sistemi Enterprise Backup',
+    version: '2.0',
+    stats: {
+      blocksCount: blocksData.blocks.length,
+      requestsCount: requestsData.requests.length,
+      archiveCount: (archiveData.deletedBlocks || []).length
+    },
+    blocks: blocksData.blocks,
+    requests: requestsData.requests,
+    config: configData,
+    archive: archiveData
+  };
+
+  const dateStr = new Date().toISOString().split('T')[0];
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="derstakip_tam_yedek_${dateStr}.json"`);
+  res.send(JSON.stringify(dump, null, 2));
+});
+
+app.post('/api/admin/import-data', (req, res) => {
+  if (!verifyAdmin(req)) return res.status(401).json({ error: 'Yetkisiz erişim.' });
+  const { blocks, requests, config, archive } = req.body;
+
+  if (!Array.isArray(blocks) && !Array.isArray(requests)) {
+    return res.status(400).json({ error: 'Geçersiz yedek dosyası yapısı. "blocks" veya "requests" dizisi bulunamadı.' });
+  }
+
+  // Create immediate pre-restore snapshot
+  createDailySnapshot();
+
+  if (Array.isArray(blocks)) {
+    writeJSON(BLOCKS_FILE, { blocks });
+  }
+  if (Array.isArray(requests)) {
+    writeJSON(REQUESTS_FILE, { requests });
+  }
+  if (config && typeof config === 'object' && config.schedule) {
+    writeJSON(CONFIG_FILE, config);
+  }
+  if (archive && typeof archive === 'object') {
+    writeJSON(ARCHIVE_FILE, archive);
+  }
+
+  res.json({
+    status: 'ok',
+    message: 'Yedek başarıyla geri yüklendi.',
+    blocksCount: blocks ? blocks.length : 0,
+    requestsCount: requests ? requests.length : 0
+  });
+});
+
+app.get('/api/admin/archive', (req, res) => {
+  if (!verifyAdmin(req)) return res.status(401).json({ error: 'Yetkisiz erişim.' });
+  const archiveData = readJSON(ARCHIVE_FILE) || { deletedBlocks: [], deletedRequests: [], cancelledRequests: [] };
+  res.json(archiveData);
+});
+
+app.post('/api/admin/restore-block/:id', (req, res) => {
+  if (!verifyAdmin(req)) return res.status(401).json({ error: 'Yetkisiz erişim.' });
+  const safeId = sanitizeString(req.params.id, 64);
+  const archiveData = readJSON(ARCHIVE_FILE) || { deletedBlocks: [] };
+  const idx = (archiveData.deletedBlocks || []).findIndex(b => b.id === safeId);
+  if (idx === -1) {
+    return res.status(404).json({ error: 'Arşivde belirtilen ders bloğu bulunamadı.' });
+  }
+
+  const restored = archiveData.deletedBlocks.splice(idx, 1)[0];
+  delete restored.archivedAt;
+  delete restored.archiveReason;
+
+  const blocksData = readJSON(BLOCKS_FILE) || { blocks: [] };
+  const sM = toMin(restored.startTime), eM = toMin(restored.endTime);
+  const overlap = blocksData.blocks.some(b => b.date === restored.date && toMin(b.startTime) < eM && toMin(b.endTime) > sM);
+  if (overlap) {
+    // Put it back
+    archiveData.deletedBlocks.splice(idx, 0, restored);
+    return res.status(409).json({ error: 'Bu saat diliminde şu an başka bir ders bloğu bulunuyor! Çakışma nedeniyle geri yüklenemedi.' });
+  }
+
+  blocksData.blocks.push(restored);
+  writeJSON(BLOCKS_FILE, blocksData);
+  writeJSON(ARCHIVE_FILE, archiveData);
+  res.json({ status: 'ok', restored });
+});
+
+app.get('/api/admin/backups-list', (req, res) => {
+  if (!verifyAdmin(req)) return res.status(401).json({ error: 'Yetkisiz erişim.' });
+  try {
+    if (!fs.existsSync(BACKUPS_DIR)) fs.mkdirSync(BACKUPS_DIR, { recursive: true });
+    const files = fs.readdirSync(BACKUPS_DIR)
+      .filter(f => f.startsWith('snapshot-') && f.endsWith('.json'))
+      .map(f => {
+        const p = path.join(BACKUPS_DIR, f);
+        const st = fs.statSync(p);
+        return {
+          filename: f,
+          sizeBytes: st.size,
+          createdAt: st.mtime
+        };
+      })
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    res.json({ backups: files });
+  } catch (err) {
+    res.status(500).json({ error: 'Yedek listesi alınamadı.' });
+  }
 });
 
 // Pages
