@@ -339,9 +339,9 @@ function renderWeekly(){
     slots.forEach(s=>{
       const off=isOff(s,dow), cov=isCovered(ds,s), pen=isPending(ds,s);
       if(s==='22:00') {
-        h+='<div class="cal-cell off cal-cell-22" style="height:' + CELL_H + 'px" aria-hidden="true"><span class="cell-lbl off-lbl">Müsait Değil</span></div>';
+        h+='<div class="cal-cell off cal-cell-22" style="height:' + CELL_H + 'px" aria-hidden="true"></div>';
       } else if(off) {
-        h+='<div class="cal-cell off" style="height:' + CELL_H + 'px" aria-hidden="true"><span class="cell-lbl off-lbl">Müsait Değil</span></div>';
+        h+='<div class="cal-cell off" style="height:' + CELL_H + 'px" aria-hidden="true"></div>';
       } else if(cov) {
         h+='<div class="cal-cell" style="height:' + CELL_H + 'px" aria-hidden="true"></div>';
       } else if(pen) {
@@ -351,8 +351,52 @@ function renderWeekly(){
       }
     });
 
-    const dayBlks=blocks.filter(b=>b.date===ds).sort((a,b)=>toMin(a.startTime)-toMin(b.startTime));
     const fs=slots[0];
+
+    // Contiguous Off-Hours Blocks (tek bir blok halinde Müsait Değil)
+    const offRanges = [];
+    let curOffStart = null;
+    let prevOffSlot = null;
+
+    slots.forEach(s => {
+      const off = isOff(s, dow);
+      if (off) {
+        if (!curOffStart) curOffStart = s;
+        prevOffSlot = s;
+      } else {
+        if (curOffStart && prevOffSlot) {
+          offRanges.push({ start: curOffStart, end: toTime(toMin(prevOffSlot) + 30) });
+          curOffStart = null;
+          prevOffSlot = null;
+        }
+      }
+    });
+    if (curOffStart && prevOffSlot) {
+      offRanges.push({ start: curOffStart, end: toTime(toMin(prevOffSlot) + 30) });
+    }
+
+    offRanges.forEach(rng => {
+      const sMin = toMin(rng.start);
+      const eMin = toMin(rng.end);
+      const top = (sMin - toMin(fs)) / 30 * CELL_H;
+      const height = (eMin - sMin) / 30 * CELL_H;
+      const dur = eMin - sMin;
+      const isSunday = (dow === 0);
+      const labelText = isSunday ? 'Pazar Kapalı' : 'Müsait Değil';
+
+      if (dur <= 30) {
+        h += '<div class="cal-block off-block compact" style="top:' + top + 'px;height:' + height + 'px">';
+        h += '<span class="cb-label" style="font-size:0.68rem;opacity:0.85;">' + labelText + '</span>';
+        h += '</div>';
+      } else {
+        h += '<div class="cal-block off-block" style="top:' + top + 'px;height:' + height + 'px">';
+        h += '<span class="cb-time">' + rng.start + '–' + rng.end + '</span>';
+        h += '<span class="cb-label">' + labelText + '</span>';
+        h += '</div>';
+      }
+    });
+
+    const dayBlks=blocks.filter(b=>b.date===ds).sort((a,b)=>toMin(a.startTime)-toMin(b.startTime));
     dayBlks.forEach(b=>{
       const top=(toMin(b.startTime)-toMin(fs))/30*CELL_H;
       const height=(toMin(b.endTime)-toMin(b.startTime))/30*CELL_H;

@@ -742,9 +742,51 @@ function renderWeekly() {
       const off=isOff(s,dow);
       h+=`<div class="cal-cell${off?' off':''}" data-date="${ds}" data-time="${s}" style="height:${CELL_H}px"></div>`;
     });
+
+    // Contiguous Off-Hours Blocks (tek bir blok halinde Müsait Değil)
+    const offRanges = [];
+    let curOffStart = null;
+    let prevOffSlot = null;
+
+    slots.forEach(s => {
+      const off = isOff(s, dow);
+      if (off) {
+        if (!curOffStart) curOffStart = s;
+        prevOffSlot = s;
+      } else {
+        if (curOffStart && prevOffSlot) {
+          offRanges.push({ start: curOffStart, end: toTime(toMin(prevOffSlot) + 30) });
+          curOffStart = null;
+          prevOffSlot = null;
+        }
+      }
+    });
+    if (curOffStart && prevOffSlot) {
+      offRanges.push({ start: curOffStart, end: toTime(toMin(prevOffSlot) + 30) });
+    }
+
+    const firstSlot=slots[0];
+    offRanges.forEach(rng => {
+      const sMin = toMin(rng.start);
+      const eMin = toMin(rng.end);
+      const top = (sMin - toMin(firstSlot)) / 30 * CELL_H;
+      const height = (eMin - sMin) / 30 * CELL_H;
+      const dur = eMin - sMin;
+      const isSunday = (dow === 0);
+      const labelText = isSunday ? 'Pazar Kapalı' : 'Müsait Değil';
+
+      if (dur <= 30) {
+        h += `<div class="cal-block off-block compact" style="top:${top}px;height:${height}px">` +
+             `<span class="cb-label" style="font-size:0.68rem;opacity:0.85;">${labelText}</span></div>`;
+      } else {
+        h += `<div class="cal-block off-block" style="top:${top}px;height:${height}px">` +
+             `<span class="cb-time">${rng.start}–${rng.end}</span>` +
+             `<span class="cb-label">${labelText}</span></div>`;
+      }
+    });
+
     // Blocks overlay
     const dayBlocks=blocks.filter(b=>b.date===ds).sort((a,b)=>toMin(a.startTime)-toMin(b.startTime));
-    const firstSlot=slots[0];
     dayBlocks.forEach(b=>{
       const top=(toMin(b.startTime)-toMin(firstSlot))/30*CELL_H;
       const height=(toMin(b.endTime)-toMin(b.startTime))/30*CELL_H;
