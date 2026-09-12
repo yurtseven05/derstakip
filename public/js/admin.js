@@ -837,17 +837,43 @@ async function loadBackupPanel() {
   const c = document.getElementById('archiveList');
   if (!c) return;
   try {
-    const [archRes, bkpRes] = await Promise.all([
+    const [archRes, bkpRes, storageRes] = await Promise.all([
       fetch(`${API}/api/admin/archive`, { headers: { 'X-Admin-Password': adminPassword } }),
-      fetch(`${API}/api/admin/backups-list`, { headers: { 'X-Admin-Password': adminPassword } })
+      fetch(`${API}/api/admin/backups-list`, { headers: { 'X-Admin-Password': adminPassword } }),
+      fetch(`${API}/api/admin/storage-status`, { headers: { 'X-Admin-Password': adminPassword } })
     ]);
     const archiveData = archRes.ok ? await archRes.json() : { deletedBlocks: [] };
     const backupData = bkpRes.ok ? await bkpRes.json() : { backups: [] };
+    const storageData = storageRes.ok ? await storageRes.json() : { isCloud: false, engine: 'Yerel Disk' };
 
     const snapCountEl = document.getElementById('backupSnapshotsCount');
     if (snapCountEl) snapCountEl.textContent = (backupData.backups || []).length;
     const archCountEl = document.getElementById('archivedBlocksCount');
     if (archCountEl) archCountEl.textContent = (archiveData.deletedBlocks || []).length;
+
+    // Storage Status Card & Banner Updates
+    const engineEl = document.getElementById('storageEngineStatus');
+    const bannerEl = document.getElementById('cloudStorageBanner');
+    const titleEl = document.getElementById('cloudStorageTitle');
+    const descEl = document.getElementById('cloudStorageDesc');
+    const iconEl = document.getElementById('cloudStorageIcon');
+    const engineCard = document.getElementById('storageEngineCard');
+
+    if (storageData.isCloud) {
+      if (engineEl) engineEl.textContent = '☁️ Bulut Aktif';
+      if (engineCard) { engineCard.className = 'stat-card green'; }
+      if (titleEl) titleEl.textContent = '☁️ MongoDB Atlas Bulut Koruması Aktif (Veriler Asla Sıfırlanmaz)';
+      if (iconEl) iconEl.textContent = '🛡️';
+      if (descEl) descEl.innerHTML = 'Tüm verileriniz MongoDB Atlas bulutunda güvence altındadır. Render sunucusu uyusa, kapansa veya yeniden başlasa dahi <strong>hiçbir veriniz asla sıfırlanmaz veya silinmez</strong>.';
+      if (bannerEl) bannerEl.style.borderColor = 'rgba(176, 197, 87, 0.5)';
+    } else {
+      if (engineEl) engineEl.textContent = '📁 Yerel Disk';
+      if (engineCard) { engineCard.className = 'stat-card amber'; }
+      if (titleEl) titleEl.textContent = '📁 Yerel Disk Modu (Bulut Koruması İçin MongoDB Bağlayın)';
+      if (iconEl) iconEl.textContent = '💡';
+      if (descEl) descEl.innerHTML = 'Veriler şu anda sunucunun yerel diskinde saklanıyor. Render platformundaki ücretsiz servislerin yeniden başlama durumunda sıfırlanmasını engellemek için ücretsiz <strong>MongoDB Atlas</strong> veritabanı bağlayabilirsiniz (Render panelinde Environment sekmesinden <code>MONGODB_URI</code> ekleyiniz). Ayrıca istediğiniz an yukarıdaki butondan tek tıkla tam yedek indirebilirsiniz.';
+      if (bannerEl) bannerEl.style.borderColor = 'rgba(217, 119, 6, 0.4)';
+    }
 
     const deletedBlocks = (archiveData.deletedBlocks || []).sort((a,b) => (b.archivedAt || '').localeCompare(a.archivedAt || ''));
 

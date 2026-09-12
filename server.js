@@ -1,8 +1,10 @@
-const express = require('express');
+﻿const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+
+const storage = require('./storage');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -78,126 +80,6 @@ function rateLimiter(storeName, maxAttempts, windowMs, errorMessage) {
   };
 }
 
-// Data directory & paths
-const DATA_DIR = path.join(__dirname, 'data');
-const BLOCKS_FILE = path.join(DATA_DIR, 'blocks.json');
-const REQUESTS_FILE = path.join(DATA_DIR, 'requests.json');
-const CONFIG_FILE = path.join(DATA_DIR, 'config.json');
-const ARCHIVE_FILE = path.join(DATA_DIR, 'archive.json');
-const BACKUPS_DIR = path.join(DATA_DIR, 'backups');
-
-const DEFAULT_CONFIG = {
-  adminPassword: process.env.ADMIN_PASSWORD || 'admin123',
-  schedule: {
-    1: { start: '19:00', end: '22:00' },
-    2: { start: '17:00', end: '22:00' },
-    3: { start: '17:00', end: '22:00' },
-    4: { start: '17:00', end: '22:00' },
-    5: { start: '19:00', end: '22:00' },
-    6: { start: '09:00', end: '22:00' }
-  },
-  defaultDuration: 60
-};
-
-// Helpers & Sanitization
-function readJSON(f) {
-  try { 
-    if (!fs.existsSync(f)) return null;
-    return JSON.parse(fs.readFileSync(f, 'utf8')); 
-  }
-  catch { return null; }
-}
-
-// Enterprise-Grade Atomic Write (Prevents 0-byte or corrupted files on power cuts or crashes)
-function writeJSON(f, d) { 
-  if (d === null || d === undefined) {
-    console.error('writeJSON error: attempt to write null or undefined to', f);
-    return;
-  }
-  try {
-    const content = JSON.stringify(d, null, 2);
-    // 1. Keep emergency .bak copy if file already exists
-    if (fs.existsSync(f)) {
-      try { fs.copyFileSync(f, f + '.bak'); } catch (e) {}
-    }
-    // 2. Write to unique temp file, then atomically replace
-    const tmpFile = `${f}.${Date.now()}.${crypto.randomBytes(3).toString('hex')}.tmp`;
-    fs.writeFileSync(tmpFile, content, 'utf8');
-    fs.renameSync(tmpFile, f);
-  } catch (err) {
-    console.error('File write error for', f, ':', err.message);
-  }
-}
-
-// Data Archiving & Audit Trail (Never lose deleted lessons or requests)
-function archiveRecord(type, record, reason = 'Kullanıcı/Admin tarafından silindi') {
-  try {
-    const archive = readJSON(ARCHIVE_FILE) || { deletedBlocks: [], deletedRequests: [], cancelledRequests: [] };
-    const entry = {
-      ...record,
-      archivedAt: new Date().toISOString(),
-      archiveReason: reason
-    };
-    if (type === 'block') {
-      if (!archive.deletedBlocks) archive.deletedBlocks = [];
-      archive.deletedBlocks.push(entry);
-    } else if (type === 'request') {
-      if (!archive.deletedRequests) archive.deletedRequests = [];
-      archive.deletedRequests.push(entry);
-    } else if (type === 'cancel') {
-      if (!archive.cancelledRequests) archive.cancelledRequests = [];
-      archive.cancelledRequests.push(entry);
-    }
-    writeJSON(ARCHIVE_FILE, archive);
-  } catch (err) {
-    console.error('Archive record error:', err.message);
-  }
-}
-
-// Daily Automatic Snapshot Backup (Retains last 30 daily snapshots)
-function createDailySnapshot() {
-  try {
-    if (!fs.existsSync(BACKUPS_DIR)) fs.mkdirSync(BACKUPS_DIR, { recursive: true });
-    const today = new Date().toISOString().split('T')[0];
-    const snapFile = path.join(BACKUPS_DIR, `snapshot-${today}.json`);
-    
-    const blocksData = readJSON(BLOCKS_FILE) || { blocks: [] };
-    const requestsData = readJSON(REQUESTS_FILE) || { requests: [] };
-    const configData = readJSON(CONFIG_FILE) || DEFAULT_CONFIG;
-    const archiveData = readJSON(ARCHIVE_FILE) || {};
-
-    const snapshot = {
-      snapshotDate: today,
-      createdAt: new Date().toISOString(),
-      stats: {
-        blocksCount: blocksData.blocks?.length || 0,
-        requestsCount: requestsData.requests?.length || 0
-      },
-      blocks: blocksData.blocks || [],
-      requests: requestsData.requests || [],
-      config: configData,
-      archive: archiveData
-    };
-    
-    writeJSON(snapFile, snapshot);
-
-    // Prune backups older than 30 days
-    const files = fs.readdirSync(BACKUPS_DIR);
-    files.forEach(file => {
-      if (file.startsWith('snapshot-') && file.endsWith('.json')) {
-        const filePath = path.join(BACKUPS_DIR, file);
-        const stats = fs.statSync(filePath);
-        const ageInDays = (Date.now() - stats.mtimeMs) / (1000 * 60 * 60 * 24);
-        if (ageInDays > 30) {
-          try { fs.unlinkSync(filePath); } catch(e) {}
-        }
-      }
-    });
-  } catch (err) {
-    console.error('Snapshot creation error:', err.message);
-  }
-}
-
 function genId() { 
   return Date.now().toString(36) + crypto.randomBytes(4).toString('hex'); 
 }
@@ -205,7 +87,7 @@ function genId() {
 function sanitizeString(str, maxLength = 100) {
   if (typeof str !== 'string') return '';
   return str
-    .replace(/[<>\"'&]/g, '') // Strip XSS dangerous characters
+    .replace(/[<>"'&]/g, '') // Strip XSS dangerous characters
     .trim()
     .substring(0, maxLength);
 }
@@ -226,7 +108,7 @@ function verifyAdmin(req) {
   const provided = req.headers['x-admin-password'] || req.body?.password;
   if (!provided || typeof provided !== 'string') return false;
 
-  const cfg = readJSON(CONFIG_FILE);
+  const cfg = storage.getConfig();
   const currentPassword = process.env.ADMIN_PASSWORD || cfg?.adminPassword || 'admin123';
 
   const bufProvided = Buffer.from(provided);
@@ -236,23 +118,6 @@ function verifyAdmin(req) {
   return crypto.timingSafeEqual(bufProvided, bufCurrent);
 }
 
-// Init data files
-if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-if (!fs.existsSync(BACKUPS_DIR)) fs.mkdirSync(BACKUPS_DIR, { recursive: true });
-if (!fs.existsSync(BLOCKS_FILE)) writeJSON(BLOCKS_FILE, { blocks: [] });
-if (!fs.existsSync(REQUESTS_FILE)) writeJSON(REQUESTS_FILE, { requests: [] });
-if (!fs.existsSync(ARCHIVE_FILE)) writeJSON(ARCHIVE_FILE, { deletedBlocks: [], deletedRequests: [], cancelledRequests: [] });
-if (!fs.existsSync(CONFIG_FILE)) writeJSON(CONFIG_FILE, DEFAULT_CONFIG);
-
-const cfg = readJSON(CONFIG_FILE);
-if (!cfg || !cfg.schedule) { 
-  writeJSON(CONFIG_FILE, DEFAULT_CONFIG); 
-}
-
-// Create initial snapshot and schedule daily automatic backups
-createDailySnapshot();
-setInterval(createDailySnapshot, 1000 * 60 * 60 * 12); // Every 12 hours
-
 // ============ API ENDPOINTS ============
 
 // General rate limiting for API
@@ -260,25 +125,24 @@ app.use('/api/', rateLimiter('general', 120, 60000, 'Çok fazla istek gönderild
 
 // 1. Schedule config
 app.get('/api/config/schedule', (req, res) => {
-  const c = readJSON(CONFIG_FILE) || DEFAULT_CONFIG;
-  res.json({ schedule: c.schedule || DEFAULT_CONFIG.schedule, defaultDuration: c.defaultDuration || 90 });
+  const c = storage.getConfig();
+  res.json({ schedule: c.schedule, defaultDuration: c.defaultDuration || 60 });
 });
 
 app.put('/api/config/schedule', (req, res) => {
   if (!verifyAdmin(req)) return res.status(401).json({ error: 'Yetkisiz erişim. Lütfen tekrar giriş yapın.' });
-  const c = readJSON(CONFIG_FILE) || DEFAULT_CONFIG;
+  const c = { ...storage.getConfig() };
   if (req.body.schedule && typeof req.body.schedule === 'object') c.schedule = req.body.schedule;
   if (req.body.defaultDuration != null && Number.isInteger(req.body.defaultDuration)) {
     c.defaultDuration = Math.min(Math.max(req.body.defaultDuration, 30), 240);
   }
-  writeJSON(CONFIG_FILE, c);
+  storage.setConfig(c);
   res.json({ status: 'ok' });
 });
 
 // 2. Blocks
 app.get('/api/blocks', (req, res) => {
-  const data = readJSON(BLOCKS_FILE) || { blocks: [] };
-  res.json(data);
+  res.json({ blocks: storage.getBlocks() });
 });
 
 app.post('/api/blocks', (req, res) => {
@@ -303,13 +167,13 @@ app.post('/api/blocks', (req, res) => {
     return res.status(400).json({ error: 'Bitiş saati başlangıç saatinden sonra olmalıdır.' });
   }
 
-  const data = readJSON(BLOCKS_FILE) || { blocks: [] };
-  const overlap = data.blocks.some(b => b.date === date && toMin(b.startTime) < eM && toMin(b.endTime) > sM);
+  const allBlocks = [...storage.getBlocks()];
+  const overlap = allBlocks.some(b => b.date === date && toMin(b.startTime) < eM && toMin(b.endTime) > sM);
   if (overlap) return res.status(409).json({ error: 'Bu zaman dilimi başka bir ders veya kapalı blokla çakışıyor.' });
 
   const block = { id: genId(), date, startTime, endTime, label: label || '', studentCode: studentCode || '' };
-  data.blocks.push(block);
-  writeJSON(BLOCKS_FILE, data);
+  allBlocks.push(block);
+  storage.setBlocks(allBlocks);
   res.json({ status: 'ok', block });
 });
 
@@ -336,7 +200,7 @@ app.post('/api/blocks/recurring', (req, res) => {
     return res.status(400).json({ error: 'Geçersiz taahhüt parametreleri.' });
   }
 
-  const data = readJSON(BLOCKS_FILE) || { blocks: [] };
+  const allBlocks = [...storage.getBlocks()];
   const created = [];
   const groupId = genId();
   const d = new Date(startDate + 'T00:00:00');
@@ -347,22 +211,22 @@ app.post('/api/blocks/recurring', (req, res) => {
     const cur = new Date(d); 
     cur.setDate(cur.getDate() + w * 7);
     const ds = cur.toISOString().split('T')[0];
-    const overlap = data.blocks.some(b => b.date === ds && toMin(b.startTime) < eM && toMin(b.endTime) > sM);
+    const overlap = allBlocks.some(b => b.date === ds && toMin(b.startTime) < eM && toMin(b.endTime) > sM);
     if (!overlap) {
       const block = { id: genId(), groupId, date: ds, startTime, endTime, label: label || '', studentCode: studentCode || '', dayOfWeek };
-      data.blocks.push(block);
+      allBlocks.push(block);
       created.push(block);
     }
   }
-  writeJSON(BLOCKS_FILE, data);
+  storage.setBlocks(allBlocks);
   res.json({ status: 'ok', created, count: created.length, groupId });
 });
 
 app.get('/api/recurring-groups', (req, res) => {
   if (!verifyAdmin(req)) return res.status(401).json({ error: 'Yetkisiz erişim.' });
-  const data = readJSON(BLOCKS_FILE) || { blocks: [] };
+  const allBlocks = storage.getBlocks();
   const groups = {};
-  data.blocks.filter(b => b.groupId).forEach(b => {
+  allBlocks.filter(b => b.groupId).forEach(b => {
     if (!groups[b.groupId]) {
       groups[b.groupId] = { groupId: b.groupId, label: b.label, studentCode: b.studentCode || '', startTime: b.startTime, endTime: b.endTime, dayOfWeek: b.dayOfWeek, blocks: [] };
     }
@@ -381,33 +245,32 @@ app.get('/api/recurring-groups', (req, res) => {
 app.delete('/api/recurring-groups/:groupId', (req, res) => {
   if (!verifyAdmin(req)) return res.status(401).json({ error: 'Yetkisiz erişim.' });
   const safeGroupId = sanitizeString(req.params.groupId, 64);
-  const data = readJSON(BLOCKS_FILE) || { blocks: [] };
-  const before = data.blocks.length;
-  const toDelete = data.blocks.filter(b => b.groupId === safeGroupId);
-  toDelete.forEach(b => archiveRecord('block', b, `Taahhütlü grup toplu silindi (${safeGroupId})`));
-  data.blocks = data.blocks.filter(b => b.groupId !== safeGroupId);
-  const deleted = before - data.blocks.length;
-  writeJSON(BLOCKS_FILE, data);
+  const allBlocks = storage.getBlocks();
+  const toDelete = allBlocks.filter(b => b.groupId === safeGroupId);
+  toDelete.forEach(b => storage.archiveRecord('block', b, `Taahhütlü grup toplu silindi (${safeGroupId})`));
+  const remaining = allBlocks.filter(b => b.groupId !== safeGroupId);
+  const deleted = allBlocks.length - remaining.length;
+  storage.setBlocks(remaining);
   res.json({ status: 'ok', deleted });
 });
 
 app.delete('/api/blocks/:id', (req, res) => {
   if (!verifyAdmin(req)) return res.status(401).json({ error: 'Yetkisiz erişim.' });
   const safeId = sanitizeString(req.params.id, 64);
-  const data = readJSON(BLOCKS_FILE) || { blocks: [] };
-  const blockToDelete = data.blocks.find(b => b.id === safeId);
+  const allBlocks = storage.getBlocks();
+  const blockToDelete = allBlocks.find(b => b.id === safeId);
   if (blockToDelete) {
-    archiveRecord('block', blockToDelete, 'Admin tarafından tekil blok silindi');
+    storage.archiveRecord('block', blockToDelete, 'Admin tarafından tekil blok silindi');
   }
-  data.blocks = data.blocks.filter(b => b.id !== safeId);
-  writeJSON(BLOCKS_FILE, data);
+  const remaining = allBlocks.filter(b => b.id !== safeId);
+  storage.setBlocks(remaining);
   res.json({ status: 'ok' });
 });
 
 // 3. Requests
 app.get('/api/requests/pending', (req, res) => {
-  const data = readJSON(REQUESTS_FILE) || { requests: [] };
-  const pending = data.requests.filter(r => r.status === 'pending');
+  const allRequests = storage.getRequests();
+  const pending = allRequests.filter(r => r.status === 'pending');
   // Obfuscate phone numbers in public pending view for student privacy
   const sanitizedPending = pending.map(r => ({
     id: r.id,
@@ -446,7 +309,7 @@ app.post('/api/requests', rateLimiter('requests', 5, 600000, 'Çok fazla ders ta
     return res.status(400).json({ error: 'Telefon numarası 5 ile başlamalı ve 10 haneli olmalıdır (Örn: 5XX XXX XX XX).' });
   }
 
-  const data = readJSON(REQUESTS_FILE) || { requests: [] };
+  const allRequests = [...storage.getRequests()];
   const r = {
     id: genId(),
     firstName,
@@ -459,8 +322,8 @@ app.post('/api/requests', rateLimiter('requests', 5, 600000, 'Çok fazla ders ta
     status: 'pending'
   };
   
-  data.requests.push(r);
-  writeJSON(REQUESTS_FILE, data);
+  allRequests.push(r);
+  storage.setRequests(allRequests);
   res.json({ status: 'ok', request: { id: r.id, date: r.date, startTime: r.startTime, endTime: r.endTime } });
 });
 
@@ -474,44 +337,44 @@ app.post('/api/requests/cancel', rateLimiter('requests', 5, 300000, 'Çok fazla 
     return res.status(400).json({ error: 'Talep ID ve telefon numarası zorunludur.' });
   }
 
-  const data = readJSON(REQUESTS_FILE) || { requests: [] };
-  const index = data.requests.findIndex(r => r.id === requestId && r.phone === phone);
+  const allRequests = [...storage.getRequests()];
+  const index = allRequests.findIndex(r => r.id === requestId && r.phone === phone);
   
   if (index === -1) {
     return res.status(404).json({ error: 'Eşleşen aktif randevu talebi bulunamadı.' });
   }
 
-  const reqToCancel = data.requests[index];
-  archiveRecord('cancel', reqToCancel, 'Öğrenci/Veli tarafından KVKK kapsamında iptal edildi');
+  const reqToCancel = allRequests[index];
+  storage.archiveRecord('cancel', reqToCancel, 'Öğrenci/Veli tarafından KVKK kapsamında iptal edildi');
 
-  data.requests.splice(index, 1);
-  writeJSON(REQUESTS_FILE, data);
+  allRequests.splice(index, 1);
+  storage.setRequests(allRequests);
   res.json({ status: 'ok', message: 'Talebiniz ve kişisel verileriniz başarıyla silindi.' });
 });
 
 app.get('/api/requests', (req, res) => {
   if (!verifyAdmin(req)) return res.status(401).json({ error: 'Yetkisiz erişim.' });
-  res.json(readJSON(REQUESTS_FILE) || { requests: [] });
+  res.json({ requests: storage.getRequests() });
 });
 
 app.delete('/api/requests/:id', (req, res) => {
   if (!verifyAdmin(req)) return res.status(401).json({ error: 'Yetkisiz erişim.' });
   const safeId = sanitizeString(req.params.id, 64);
-  const data = readJSON(REQUESTS_FILE) || { requests: [] };
-  const reqToDelete = data.requests.find(r => r.id === safeId);
+  const allRequests = [...storage.getRequests()];
+  const reqToDelete = allRequests.find(r => r.id === safeId);
   if (reqToDelete) {
-    archiveRecord('request', reqToDelete, 'Admin tarafından talep silindi');
+    storage.archiveRecord('request', reqToDelete, 'Admin tarafından talep silindi');
   }
-  data.requests = data.requests.filter(r => r.id !== safeId);
-  writeJSON(REQUESTS_FILE, data);
+  const remaining = allRequests.filter(r => r.id !== safeId);
+  storage.setRequests(remaining);
   res.json({ status: 'ok' });
 });
 
 app.patch('/api/requests/:id', (req, res) => {
   if (!verifyAdmin(req)) return res.status(401).json({ error: 'Yetkisiz erişim.' });
   const safeId = sanitizeString(req.params.id, 64);
-  const data = readJSON(REQUESTS_FILE) || { requests: [] };
-  const r = data.requests.find(x => x.id === safeId);
+  const allRequests = [...storage.getRequests()];
+  const r = allRequests.find(x => x.id === safeId);
   if (!r) return res.status(404).json({ error: 'Talep bulunamadı.' });
   
   const status = sanitizeString(req.body.status, 20);
@@ -519,14 +382,14 @@ app.patch('/api/requests/:id', (req, res) => {
   if (['pending', 'approved', 'rejected'].includes(status)) {
     r.status = status;
     if (studentCode) r.studentCode = studentCode;
-    writeJSON(REQUESTS_FILE, data);
+    storage.setRequests(allRequests);
 
     if (r.status === 'approved') {
-      const bd = readJSON(BLOCKS_FILE) || { blocks: [] };
+      const allBlocks = [...storage.getBlocks()];
       const sM = toMin(r.startTime), eM = toMin(r.endTime);
-      const exists = bd.blocks.some(b => b.date === r.date && toMin(b.startTime) < eM && toMin(b.endTime) > sM);
+      const exists = allBlocks.some(b => b.date === r.date && toMin(b.startTime) < eM && toMin(b.endTime) > sM);
       if (!exists) {
-        bd.blocks.push({
+        allBlocks.push({
           id: genId(),
           date: r.date,
           startTime: r.startTime,
@@ -534,7 +397,7 @@ app.patch('/api/requests/:id', (req, res) => {
           label: `${r.firstName} ${r.lastName}`,
           studentCode: studentCode || r.studentCode || ''
         });
-        writeJSON(BLOCKS_FILE, bd);
+        storage.setBlocks(allBlocks);
       }
     }
   }
@@ -544,9 +407,8 @@ app.patch('/api/requests/:id', (req, res) => {
 // 4. Analytics
 app.get('/api/analytics', (req, res) => {
   if (!verifyAdmin(req)) return res.status(401).json({ error: 'Yetkisiz erişim.' });
-  const blocksData = readJSON(BLOCKS_FILE) || { blocks: [] };
-  const reqData = readJSON(REQUESTS_FILE) || { requests: [] };
-  const allBlocks = blocksData.blocks;
+  const allBlocks = storage.getBlocks();
+  const allRequests = storage.getRequests();
 
   const monthly = {};
   allBlocks.forEach(b => {
@@ -583,8 +445,8 @@ app.get('/api/analytics', (req, res) => {
 
   const totalBlocks = allBlocks.length;
   const totalHours = allBlocks.reduce((sum, b) => sum + (toMin(b.endTime) - toMin(b.startTime)) / 60, 0);
-  const totalRequests = reqData.requests.length;
-  const approvedRequests = reqData.requests.filter(r => r.status === 'approved').length;
+  const totalRequests = allRequests.length;
+  const approvedRequests = allRequests.filter(r => r.status === 'approved').length;
 
   res.json({
     total: { blocks: totalBlocks, hours: Math.round(totalHours * 10) / 10, requests: totalRequests, approved: approvedRequests },
@@ -601,14 +463,11 @@ app.get('/api/student-stats/:code', rateLimiter('studentStats', 30, 60000, 'Çok
     return res.status(400).json({ error: 'Lütfen geçerli bir öğrenci kodu giriniz.' });
   }
 
-  const blocksData = readJSON(BLOCKS_FILE) || { blocks: [] };
-  const allBlocks = blocksData.blocks;
-
-  // Filter lessons matching this student code
+  const allBlocks = storage.getBlocks();
   const studentBlocks = allBlocks.filter(b => (b.studentCode || '').trim().toUpperCase() === code);
 
   if (!studentBlocks.length) {
-    return res.status(404).json({ error: `\"${code}\" koduna ait ders kaydı bulunamadı. Lütfen kodunuzu kontrol ediniz.` });
+    return res.status(404).json({ error: `"${code}" koduna ait ders kaydı bulunamadı. Lütfen kodunuzu kontrol ediniz.` });
   }
 
   const todayStr = new Date().toISOString().split('T')[0];
@@ -687,33 +546,33 @@ app.post('/api/admin/change-password', (req, res) => {
   if (!newPassword || newPassword.length < 6) {
     return res.status(400).json({ error: 'Yeni şifre en az 6 karakter olmalıdır.' });
   }
-  const c = readJSON(CONFIG_FILE) || DEFAULT_CONFIG;
+  const c = { ...storage.getConfig() };
   c.adminPassword = newPassword;
-  writeJSON(CONFIG_FILE, c);
+  storage.setConfig(c);
   res.json({ status: 'ok' });
 });
 
 // 6. Data Persistence, Backup & Restore Endpoints
 app.get('/api/admin/export-data', (req, res) => {
   if (!verifyAdmin(req)) return res.status(401).json({ error: 'Yetkisiz erişim.' });
-  const blocksData = readJSON(BLOCKS_FILE) || { blocks: [] };
-  const requestsData = readJSON(REQUESTS_FILE) || { requests: [] };
-  const configData = readJSON(CONFIG_FILE) || DEFAULT_CONFIG;
-  const archiveData = readJSON(ARCHIVE_FILE) || { deletedBlocks: [], deletedRequests: [], cancelledRequests: [] };
+  const blocks = storage.getBlocks();
+  const requests = storage.getRequests();
+  const config = storage.getConfig();
+  const archive = storage.getArchive();
 
   const dump = {
     exportedAt: new Date().toISOString(),
-    system: 'Ders Takip Sistemi Enterprise Backup',
+    system: 'Ders Takip Sistemi Bulut & Yerel Kalıcı Yedek',
     version: '2.0',
     stats: {
-      blocksCount: blocksData.blocks.length,
-      requestsCount: requestsData.requests.length,
-      archiveCount: (archiveData.deletedBlocks || []).length
+      blocksCount: blocks.length,
+      requestsCount: requests.length,
+      archiveCount: (archive.deletedBlocks || []).length
     },
-    blocks: blocksData.blocks,
-    requests: requestsData.requests,
-    config: configData,
-    archive: archiveData
+    blocks,
+    requests,
+    config,
+    archive
   };
 
   const dateStr = new Date().toISOString().split('T')[0];
@@ -731,24 +590,24 @@ app.post('/api/admin/import-data', (req, res) => {
   }
 
   // Create immediate pre-restore snapshot
-  createDailySnapshot();
+  storage.createDailySnapshot();
 
   if (Array.isArray(blocks)) {
-    writeJSON(BLOCKS_FILE, { blocks });
+    storage.setBlocks(blocks);
   }
   if (Array.isArray(requests)) {
-    writeJSON(REQUESTS_FILE, { requests });
+    storage.setRequests(requests);
   }
   if (config && typeof config === 'object' && config.schedule) {
-    writeJSON(CONFIG_FILE, config);
+    storage.setConfig(config);
   }
   if (archive && typeof archive === 'object') {
-    writeJSON(ARCHIVE_FILE, archive);
+    storage.setArchive(archive);
   }
 
   res.json({
     status: 'ok',
-    message: 'Yedek başarıyla geri yüklendi.',
+    message: 'Yedek başarıyla geri yüklendi ve bulutla senkronize edildi.',
     blocksCount: blocks ? blocks.length : 0,
     requestsCount: requests ? requests.length : 0
   });
@@ -756,15 +615,15 @@ app.post('/api/admin/import-data', (req, res) => {
 
 app.get('/api/admin/archive', (req, res) => {
   if (!verifyAdmin(req)) return res.status(401).json({ error: 'Yetkisiz erişim.' });
-  const archiveData = readJSON(ARCHIVE_FILE) || { deletedBlocks: [], deletedRequests: [], cancelledRequests: [] };
-  res.json(archiveData);
+  res.json(storage.getArchive());
 });
 
 app.post('/api/admin/restore-block/:id', (req, res) => {
   if (!verifyAdmin(req)) return res.status(401).json({ error: 'Yetkisiz erişim.' });
   const safeId = sanitizeString(req.params.id, 64);
-  const archiveData = readJSON(ARCHIVE_FILE) || { deletedBlocks: [] };
-  const idx = (archiveData.deletedBlocks || []).findIndex(b => b.id === safeId);
+  const archiveData = { ...storage.getArchive() };
+  archiveData.deletedBlocks = archiveData.deletedBlocks || [];
+  const idx = archiveData.deletedBlocks.findIndex(b => b.id === safeId);
   if (idx === -1) {
     return res.status(404).json({ error: 'Arşivde belirtilen ders bloğu bulunamadı.' });
   }
@@ -773,29 +632,31 @@ app.post('/api/admin/restore-block/:id', (req, res) => {
   delete restored.archivedAt;
   delete restored.archiveReason;
 
-  const blocksData = readJSON(BLOCKS_FILE) || { blocks: [] };
+  const allBlocks = [...storage.getBlocks()];
   const sM = toMin(restored.startTime), eM = toMin(restored.endTime);
-  const overlap = blocksData.blocks.some(b => b.date === restored.date && toMin(b.startTime) < eM && toMin(b.endTime) > sM);
+  const overlap = allBlocks.some(b => b.date === restored.date && toMin(b.startTime) < eM && toMin(b.endTime) > sM);
   if (overlap) {
     // Put it back
     archiveData.deletedBlocks.splice(idx, 0, restored);
     return res.status(409).json({ error: 'Bu saat diliminde şu an başka bir ders bloğu bulunuyor! Çakışma nedeniyle geri yüklenemedi.' });
   }
 
-  blocksData.blocks.push(restored);
-  writeJSON(BLOCKS_FILE, blocksData);
-  writeJSON(ARCHIVE_FILE, archiveData);
+  allBlocks.push(restored);
+  storage.setBlocks(allBlocks);
+  storage.setArchive(archiveData);
   res.json({ status: 'ok', restored });
 });
 
 app.get('/api/admin/backups-list', (req, res) => {
   if (!verifyAdmin(req)) return res.status(401).json({ error: 'Yetkisiz erişim.' });
   try {
-    if (!fs.existsSync(BACKUPS_DIR)) fs.mkdirSync(BACKUPS_DIR, { recursive: true });
-    const files = fs.readdirSync(BACKUPS_DIR)
+    const status = storage.getStorageStatus();
+    const bDir = status.backupFolder;
+    if (!fs.existsSync(bDir)) fs.mkdirSync(bDir, { recursive: true });
+    const files = fs.readdirSync(bDir)
       .filter(f => f.startsWith('snapshot-') && f.endsWith('.json'))
       .map(f => {
-        const p = path.join(BACKUPS_DIR, f);
+        const p = path.join(bDir, f);
         const st = fs.statSync(p);
         return {
           filename: f,
@@ -808,6 +669,11 @@ app.get('/api/admin/backups-list', (req, res) => {
   } catch (err) {
     res.status(500).json({ error: 'Yedek listesi alınamadı.' });
   }
+});
+
+app.get('/api/admin/storage-status', (req, res) => {
+  if (!verifyAdmin(req)) return res.status(401).json({ error: 'Yetkisiz erişim.' });
+  res.json(storage.getStorageStatus());
 });
 
 // Pages
@@ -824,7 +690,15 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Sunucu tarafında bir hata oluştu. Lütfen daha sonra tekrar deneyiniz.' });
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 Ders Takip Sunucusu: http://localhost:${PORT}`);
-  console.log(`📋 Admin Paneli: http://localhost:${PORT}/admin.html`);
+// Storage Init & Server Start
+storage.init().then(() => {
+  app.listen(PORT, () => {
+    console.log(`🚀 Ders Takip Sunucusu: http://localhost:${PORT}`);
+    console.log(`📋 Admin Paneli: http://localhost:${PORT}/admin.html`);
+  });
+}).catch(err => {
+  console.error('Storage initialization failed:', err);
+  app.listen(PORT, () => {
+    console.log(`🚀 Ders Takip Sunucusu (Fallback): http://localhost:${PORT}`);
+  });
 });
