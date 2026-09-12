@@ -6,67 +6,67 @@
 
 /* ---- CSS Custom Properties ---- */
 :root {
-  /* High-Contrast Corporate & Dynamic Palette:
-     #0F172A - Koyu Gece Laciverti / Deep Navy Slate (Metin, Başlıklar, Çerçeveler)
-     #E0F2FE - Ferah Buz Mavisi / Soft Ice Blue (Aydınlık Zemin & Arka Plan)
-     #1E3A8A - Asil Kraliyet Mavisi / Royal Blue (İkincil Vurgu, Kartlar, Rozetler)
-     #EA580C - Canlı Enerjik Turuncu / Vibrant Orange (Harekete Geç / CTA / Butonlar)
-     #64748B - Dengeleyici Arduvaz Grisi / Slate Gray (İkincil Metinler & Çizgiler)
+  /* Natural Botanical & Earth Palette:
+     #55262D - Derin Mürdüm Kestane / Deep Burgundy Chestnut (Birincil Metinler, Logolar, Çerçeveler)
+     #514243 - Koyu Toprak Grisi / Warm Taupe Umber (İkincil Metinler)
+     #B0C557 - Taze Fıstık / Bahar Yeşili / Chartreuse Green (CTA Vurgusu, Butonlar, Canlı Ögeler)
+     #779C6D - Adaçayı / Sage Herb Green (İkincil Vurgu, Rozetler, Kartlar)
+     #606D50 - Zeytin / Koyu Haki / Deep Olive Green (Kapalı Bloklar, Konturlar)
   */
-  --bg-primary: #F0F7FF;
-  --bg-secondary: #E0F2FE;
-  --bg-tertiary: #BAE6FD;
+  --bg-primary: #F8FAF2;
+  --bg-secondary: #EDF3E4;
+  --bg-tertiary: #DFECD1;
   --bg-card: #FFFFFF;
-  --bg-card-hover: #F8FAFC;
-  --bg-elevated: #E2E8F0;
-  --bg-glass: rgba(15, 23, 42, 0.04);
-  --border-glass: rgba(15, 23, 42, 0.12);
-  --border-active: rgba(30, 58, 138, 0.35);
+  --bg-card-hover: #F6F9F0;
+  --bg-elevated: #E5EED8;
+  --bg-glass: rgba(85, 38, 45, 0.04);
+  --border-glass: rgba(85, 38, 45, 0.12);
+  --border-active: rgba(119, 156, 109, 0.45);
 
-  --text-primary: #0F172A;
-  --text-secondary: #334155;
-  --text-muted: #64748B;
-  --text-gold: #EA580C;
-  --text-cream: #F8FAFC;
+  --text-primary: #55262D;
+  --text-secondary: #514243;
+  --text-muted: #726263;
+  --text-gold: #606D50;
+  --text-cream: #F8FAF2;
 
-  /* Primary Accent & CTA: Vibrant Orange #EA580C */
-  --accent-primary: #EA580C;
-  --accent-primary-glow: rgba(234, 88, 12, 0.28);
+  /* Primary Accent & CTA: Rich Herb Green / Chartreuse #5D8A4E */
+  --accent-primary: #5D8A4E;
+  --accent-primary-glow: rgba(93, 138, 78, 0.28);
 
-  /* Secondary Accent / Closed Slots / Badges: Royal Blue #1E3A8A */
-  --accent-brown: #1E3A8A;
-  --accent-brown-glow: rgba(30, 58, 138, 0.28);
-  --accent-brown-bg: rgba(30, 58, 138, 0.1);
+  /* Secondary Accent / Closed Slots / Badges: Deep Olive #606D50 */
+  --accent-brown: #606D50;
+  --accent-brown-glow: rgba(96, 109, 80, 0.28);
+  --accent-brown-bg: rgba(96, 109, 80, 0.12);
 
   /* Supporting Accents */
-  --accent-green: #1E3A8A;
-  --accent-green-glow: rgba(30, 58, 138, 0.2);
-  --accent-green-bg: rgba(30, 58, 138, 0.08);
+  --accent-green: #779C6D;
+  --accent-green-glow: rgba(119, 156, 109, 0.25);
+  --accent-green-bg: rgba(119, 156, 109, 0.1);
 
-  --accent-red: #DC2626;
-  --accent-red-glow: rgba(220, 38, 38, 0.2);
-  --accent-red-bg: rgba(220, 38, 38, 0.08);
+  --accent-red: #8B2635;
+  --accent-red-glow: rgba(139, 38, 53, 0.2);
+  --accent-red-bg: rgba(139, 38, 53, 0.08);
 
-  --accent-amber: #EA580C;
-  --accent-amber-glow: rgba(234, 88, 12, 0.25);
-  --accent-amber-bg: rgba(234, 88, 12, 0.08);
+  --accent-amber: #B0C557;
+  --accent-amber-glow: rgba(176, 197, 87, 0.3);
+  --accent-amber-bg: rgba(176, 197, 87, 0.15);
 
-  /* Student Color Palette — Harmonious vibrant hues */
-  --student-0: #EA580C; --student-0-bg: rgba(234, 88, 12, 0.14);   /* Vibrant Orange */
-  --student-1: #1E3A8A; --student-1-bg: rgba(30, 58, 138, 0.14);   /* Royal Blue */
-  --student-2: #0F172A; --student-2-bg: rgba(15, 23, 42, 0.12);    /* Deep Navy */
-  --student-3: #2563EB; --student-3-bg: rgba(37, 99, 235, 0.14);   /* Blue */
-  --student-4: #D97706; --student-4-bg: rgba(217, 119, 6, 0.14);   /* Amber */
-  --student-5: #475569; --student-5-bg: rgba(71, 85, 105, 0.14);   /* Slate */
-  --student-6: #7C3AED; --student-6-bg: rgba(124, 58, 237, 0.14);  /* Violet */
-  --student-7: #F97316; --student-7-bg: rgba(249, 115, 22, 0.14);  /* Orange */
-  --student-8: #0369A1; --student-8-bg: rgba(3, 105, 161, 0.14);   /* Sky Dark */
-  --student-9: #BE123C; --student-9-bg: rgba(190, 18, 60, 0.14);   /* Rose */
+  /* Student Color Palette — Natural botanical & earthy hues */
+  --student-0: #5D8A4E; --student-0-bg: rgba(93, 138, 78, 0.16);   /* Rich Green */
+  --student-1: #606D50; --student-1-bg: rgba(96, 109, 80, 0.16);   /* Deep Olive */
+  --student-2: #55262D; --student-2-bg: rgba(85, 38, 45, 0.14);    /* Deep Burgundy */
+  --student-3: #779C6D; --student-3-bg: rgba(119, 156, 109, 0.16); /* Sage Green */
+  --student-4: #8A5D3B; --student-4-bg: rgba(138, 93, 59, 0.14);   /* Warm Terracotta */
+  --student-5: #514243; --student-5-bg: rgba(81, 66, 67, 0.14);    /* Warm Taupe */
+  --student-6: #4A6B53; --student-6-bg: rgba(74, 107, 83, 0.16);   /* Forest Herb */
+  --student-7: #96A34A; --student-7-bg: rgba(150, 163, 74, 0.16);  /* Olive Lime */
+  --student-8: #6E323B; --student-8-bg: rgba(110, 50, 59, 0.14);   /* Chestnut Rose */
+  --student-9: #43543A; --student-9-bg: rgba(67, 84, 58, 0.16);    /* Dark Moss */
 
   /* Gradients */
-  --gradient-hero: linear-gradient(135deg, #EA580C 0%, #1E3A8A 100%);
-  --gradient-card: linear-gradient(135deg, rgba(30, 58, 138, 0.06) 0%, rgba(234, 88, 12, 0.03) 100%);
-  --gradient-warm: linear-gradient(135deg, #1E3A8A, #EA580C);
+  --gradient-hero: linear-gradient(135deg, #5D8A4E 0%, #55262D 100%);
+  --gradient-card: linear-gradient(135deg, rgba(119, 156, 109, 0.08) 0%, rgba(93, 138, 78, 0.03) 100%);
+  --gradient-warm: linear-gradient(135deg, #779C6D, #55262D);
 
   /* Spacing */
   --spacing-xs: 4px;
@@ -120,9 +120,9 @@ body {
   min-height: 100vh;
   overflow-x: hidden;
   background-image:
-    radial-gradient(ellipse at 15% 0%, rgba(224, 242, 254, 0.7) 0%, transparent 60%),
-    radial-gradient(ellipse at 85% 100%, rgba(30, 58, 138, 0.06) 0%, transparent 50%),
-    radial-gradient(ellipse at 90% 10%, rgba(234, 88, 12, 0.04) 0%, transparent 40%);
+    radial-gradient(ellipse at 15% 0%, rgba(176, 197, 87, 0.25) 0%, transparent 60%),
+    radial-gradient(ellipse at 85% 100%, rgba(85, 38, 45, 0.05) 0%, transparent 50%),
+    radial-gradient(ellipse at 90% 10%, rgba(119, 156, 109, 0.12) 0%, transparent 40%);
 }
 
 /* Texture overlay */
@@ -130,7 +130,7 @@ body::before {
   content: '';
   position: fixed;
   inset: 0;
-  background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%230F172A' fill-opacity='0.012'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%2355262D' fill-opacity='0.012'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
   pointer-events: none;
   z-index: 0;
 }
@@ -151,7 +151,7 @@ body::before {
   z-index: 100;
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
-  background: rgba(240, 247, 255, 0.88);
+  background: rgba(248, 250, 242, 0.9);
   border-bottom: 1px solid var(--border-glass);
   padding: var(--spacing-md) 0;
 }
@@ -469,23 +469,23 @@ body::before {
   font-size: 0.8rem;
   font-weight: 500;
   color: var(--text-muted);
-  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  border-bottom: 1px solid rgba(85, 38, 45, 0.08);
 }
 .cal-col {
   position: relative;
-  border-right: 1px solid rgba(15, 23, 42, 0.1);
+  border-right: 1px solid rgba(85, 38, 45, 0.1);
 }
 .cal-cell {
-  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  border-bottom: 1px solid rgba(85, 38, 45, 0.08);
   transition: all var(--transition-fast);
 }
 .cal-cell.off {
   background: repeating-linear-gradient(
     -45deg,
-    rgba(15, 23, 42, 0.22),
-    rgba(15, 23, 42, 0.22) 6px,
-    rgba(15, 23, 42, 0.35) 6px,
-    rgba(15, 23, 42, 0.35) 12px
+    rgba(85, 38, 45, 0.22),
+    rgba(85, 38, 45, 0.22) 6px,
+    rgba(85, 38, 45, 0.35) 6px,
+    rgba(85, 38, 45, 0.35) 12px
   );
   cursor: not-allowed;
   opacity: 1;
@@ -500,10 +500,10 @@ body::before {
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: inset 0 0 0 1px rgba(30, 58, 138, 0.2);
+  box-shadow: inset 0 0 0 1px rgba(93, 138, 78, 0.25);
 }
 .cal-cell.avail:hover {
-  background: rgba(224, 242, 254, 0.4);
+  background: rgba(176, 197, 87, 0.25);
   box-shadow: inset 0 0 0 1.5px var(--accent-primary);
 }
 .cal-cell.avail .cell-lbl {
@@ -524,7 +524,7 @@ body::before {
   cursor: cell;
 }
 .cal-cell.selecting {
-  background: rgba(234, 88, 12, 0.3) !important;
+  background: rgba(93, 138, 78, 0.3) !important;
   border-left: 2px solid var(--accent-primary) !important;
   border-right: 2px solid var(--accent-primary) !important;
 }
@@ -2193,13 +2193,13 @@ body::before {
   bottom: 0;
   left: 0;
   right: 0;
-  background: rgba(240, 247, 255, 0.95);
-  border-top: 1px solid rgba(15, 23, 42, 0.1);
+  background: rgba(248, 250, 242, 0.95);
+  border-top: 1px solid rgba(85, 38, 45, 0.1);
   padding: 10px 16px;
   z-index: 90;
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  box-shadow: 0 -4px 16px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 -4px 16px rgba(85, 38, 45, 0.08);
 }
 @media (max-width: 768px) {
   .mobile-quick-book-bar {
@@ -2212,6 +2212,6 @@ body::before {
     padding: 8px 18px;
     border-radius: var(--radius-full);
     font-size: 0.85rem;
-    box-shadow: 0 2px 8px rgba(234, 88, 12, 0.35);
+    box-shadow: 0 2px 8px rgba(93, 138, 78, 0.35);
   }
 }
