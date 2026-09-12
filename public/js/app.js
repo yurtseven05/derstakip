@@ -37,8 +37,8 @@ function getAllSlots(){
   if (minM >= maxM || minM === 1440) { minM = 1020; maxM = 1320; }
   maxM = Math.min(maxM, 1320); // 22:00'den sonra asla ders yok
   const slots = [];
-  // 1'er saatlik adımlarla 22:00 dahil satır oluştur
-  for (let m = minM; m <= maxM; m += 60) slots.push(toTime(m));
+  // Yarım saatlik (buçuklu) adımlarla 22:00 dahil satırlar
+  for (let m = minM; m <= maxM; m += 30) slots.push(toTime(m));
   return slots;
 }
 
@@ -354,8 +354,8 @@ function renderWeekly(){
     const dayBlks=blocks.filter(b=>b.date===ds).sort((a,b)=>toMin(a.startTime)-toMin(b.startTime));
     const fs=slots[0];
     dayBlks.forEach(b=>{
-      const top=(toMin(b.startTime)-toMin(fs))/60*CELL_H;
-      const height=(toMin(b.endTime)-toMin(b.startTime))/60*CELL_H;
+      const top=(toMin(b.startTime)-toMin(fs))/30*CELL_H;
+      const height=(toMin(b.endTime)-toMin(b.startTime))/30*CELL_H;
       const lbl=(b.label||'').trim().toLowerCase();
       const ci=lbl in labelColors ? labelColors[lbl] : '';
       h+='<div class="cal-block closed-block" style="top:' + top + 'px;height:' + height + 'px"' + (ci!==''?' data-color-index="'+ci+'"':'') + '>';
@@ -366,8 +366,8 @@ function renderWeekly(){
 
     const dayPen=pendingRequests.filter(r=>r.date===ds).sort((a,b)=>toMin(a.startTime)-toMin(b.startTime));
     dayPen.forEach(r=>{
-      const top=(toMin(r.startTime)-toMin(fs))/60*CELL_H;
-      const height=(toMin(r.endTime)-toMin(r.startTime))/60*CELL_H;
+      const top=(toMin(r.startTime)-toMin(fs))/30*CELL_H;
+      const height=(toMin(r.endTime)-toMin(r.startTime))/30*CELL_H;
       h+='<div class="cal-block pending-block" style="top:' + top + 'px;height:' + height + 'px">';
       h+='<span class="cb-time">' + esc(r.startTime) + '–' + esc(r.endTime) + '</span>';
       h+='<span class="cb-label">Talep Edildi</span>';
@@ -511,7 +511,7 @@ function finalizeSel() {
   const date = sel[0].dataset.date;
   const st = sel[0].dataset.time;
   const last = sel[sel.length - 1].dataset.time;
-  const en = toTime(toMin(last) + 60);
+  const en = toTime(toMin(last) + 30);
   dragCol = null;
   dragStart = null;
   dragEnd = null;

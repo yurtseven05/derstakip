@@ -34,8 +34,8 @@ function getAllSlots() {
   if (minM >= maxM || minM === 1440) { minM = 1020; maxM = 1320; }
   maxM = Math.min(maxM, 1320); // 22:00'den sonra asla ders yok
   const slots = [];
-  // 1'er saatlik adımlarla 22:00 dahil satır oluştur
-  for (let m = minM; m <= maxM; m += 60) slots.push(toTime(m));
+  // Yarım saatlik (buçuklu) adımlarla 22:00 dahil satırlar
+  for (let m = minM; m <= maxM; m += 30) slots.push(toTime(m));
   return slots;
 }
 
@@ -562,8 +562,8 @@ function renderWeekly() {
     const dayBlocks=blocks.filter(b=>b.date===ds).sort((a,b)=>toMin(a.startTime)-toMin(b.startTime));
     const firstSlot=slots[0];
     dayBlocks.forEach(b=>{
-      const top=(toMin(b.startTime)-toMin(firstSlot))/60*CELL_H;
-      const height=(toMin(b.endTime)-toMin(b.startTime))/60*CELL_H;
+      const top=(toMin(b.startTime)-toMin(firstSlot))/30*CELL_H;
+      const height=(toMin(b.endTime)-toMin(b.startTime))/30*CELL_H;
       const dur=toMin(b.endTime)-toMin(b.startTime);
       const lbl=(b.label||'').trim().toLowerCase();
       const ci=lbl in labelColors ? labelColors[lbl] : '';
@@ -579,8 +579,8 @@ function renderWeekly() {
     // Pending requests overlay (yellow)
     const dayPending=pendingReqs.filter(r=>r.date===ds).sort((a,b)=>toMin(a.startTime)-toMin(b.startTime));
     dayPending.forEach(r=>{
-      const top=(toMin(r.startTime)-toMin(firstSlot))/60*CELL_H;
-      const height=(toMin(r.endTime)-toMin(r.startTime))/60*CELL_H;
+      const top=(toMin(r.startTime)-toMin(firstSlot))/30*CELL_H;
+      const height=(toMin(r.endTime)-toMin(r.startTime))/30*CELL_H;
       h+=`<div class="cal-block pending-block" style="top:${top}px;height:${height}px">`;
       h+=`<span class="cb-time">${r.startTime}–${r.endTime}</span>`;
       h+=`<span class="cb-label">${esc(r.firstName)} ${esc(r.lastName)}</span>`;
@@ -637,7 +637,7 @@ function finalizeSel() {
   const date=sel[0].dataset.date;
   const st=sel[0].dataset.time;
   const last=sel[sel.length-1].dataset.time;
-  const en=toTime(toMin(last)+60);
+  const en=toTime(toMin(last)+30);
   openBlockModal(date,st,en,sel.length>1);
 }
 
