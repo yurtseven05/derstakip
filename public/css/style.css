@@ -478,13 +478,28 @@ body::before {
 .cal-cell.off {
   background: repeating-linear-gradient(
     -45deg,
-    rgba(85, 38, 45, 0.22),
-    rgba(85, 38, 45, 0.22) 6px,
-    rgba(85, 38, 45, 0.35) 6px,
-    rgba(85, 38, 45, 0.35) 12px
+    rgba(85, 38, 45, 0.12),
+    rgba(85, 38, 45, 0.12) 6px,
+    rgba(85, 38, 45, 0.20) 6px,
+    rgba(85, 38, 45, 0.20) 12px
   );
   cursor: not-allowed;
   opacity: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cal-cell.off .off-lbl {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--accent-brown);
+  opacity: 0.75;
+  letter-spacing: 0.02em;
+  user-select: none;
+  pointer-events: none;
+}
+.cal-cell.cal-cell-22 {
+  background: rgba(85, 38, 45, 0.18);
 }
 .admin-dashboard .cal-cell.off {
   cursor: pointer;

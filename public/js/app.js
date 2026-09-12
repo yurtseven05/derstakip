@@ -3,7 +3,7 @@
 // ============================================
 const API = '';
 let currentView = 'weekly', currentDate = new Date();
-let blocks = [], pendingRequests = [], SCHEDULE = {}, defaultDuration = 90;
+let blocks = [], pendingRequests = [], SCHEDULE = {}, defaultDuration = 60;
 let isDragging = false, dragStart = null, dragEnd = null, dragCol = null;
 
 const CELL_H = 32;
@@ -37,11 +37,13 @@ function getAllSlots(){
   if (minM >= maxM || minM === 1440) { minM = 1020; maxM = 1320; }
   maxM = Math.min(maxM, 1320); // 22:00'den sonra asla ders yok
   const slots = [];
-  for (let m = minM; m < maxM; m += 30) slots.push(toTime(m));
+  // 1'er saatlik adımlarla 22:00 dahil satır oluştur
+  for (let m = minM; m <= maxM; m += 60) slots.push(toTime(m));
   return slots;
 }
 
 function isOff(time,dow){
+  if(time === '22:00') return true;
   const s=SCHEDULE[dow];
   if(!s)return true;
   const m=toMin(time);
@@ -80,7 +82,7 @@ async function loadConfig(){
     if(r.ok){
       const d=await r.json();
       SCHEDULE=d.schedule || {};
-      defaultDuration=d.defaultDuration||90;
+      defaultDuration=d.defaultDuration||60;
     }
   }catch(e){}
 }
@@ -336,17 +338,24 @@ function renderWeekly(){
     h+='<div class="cal-col" data-date="' + ds + '">';
     slots.forEach(s=>{
       const off=isOff(s,dow), cov=isCovered(ds,s), pen=isPending(ds,s);
-      if(off) h+='<div class="cal-cell off" style="height:' + CELL_H + 'px" aria-hidden="true"></div>';
-      else if(cov) h+='<div class="cal-cell" style="height:' + CELL_H + 'px" aria-hidden="true"></div>';
-      else if(pen) h+='<div class="cal-cell pending-cell" style="height:' + CELL_H + 'px" title="Onay Bekleyen Talep"></div>';
-      else h+='<div class="cal-cell avail" data-date="' + ds + '" data-time="' + s + '" style="height:' + CELL_H + 'px" role="button" aria-label="' + ds + ' ' + s + ' için randevu al"><span class="cell-lbl">Müsait</span></div>';
+      if(s==='22:00') {
+        h+='<div class="cal-cell off cal-cell-22" style="height:' + CELL_H + 'px" aria-hidden="true"><span class="cell-lbl off-lbl">Müsait Değil</span></div>';
+      } else if(off) {
+        h+='<div class="cal-cell off" style="height:' + CELL_H + 'px" aria-hidden="true"><span class="cell-lbl off-lbl">Müsait Değil</span></div>';
+      } else if(cov) {
+        h+='<div class="cal-cell" style="height:' + CELL_H + 'px" aria-hidden="true"></div>';
+      } else if(pen) {
+        h+='<div class="cal-cell pending-cell" style="height:' + CELL_H + 'px" title="Onay Bekleyen Talep"></div>';
+      } else {
+        h+='<div class="cal-cell avail" data-date="' + ds + '" data-time="' + s + '" style="height:' + CELL_H + 'px" role="button" aria-label="' + ds + ' ' + s + ' için randevu al"><span class="cell-lbl">Müsait</span></div>';
+      }
     });
 
     const dayBlks=blocks.filter(b=>b.date===ds).sort((a,b)=>toMin(a.startTime)-toMin(b.startTime));
     const fs=slots[0];
     dayBlks.forEach(b=>{
-      const top=(toMin(b.startTime)-toMin(fs))/30*CELL_H;
-      const height=(toMin(b.endTime)-toMin(b.startTime))/30*CELL_H;
+      const top=(toMin(b.startTime)-toMin(fs))/60*CELL_H;
+      const height=(toMin(b.endTime)-toMin(b.startTime))/60*CELL_H;
       const lbl=(b.label||'').trim().toLowerCase();
       const ci=lbl in labelColors ? labelColors[lbl] : '';
       h+='<div class="cal-block closed-block" style="top:' + top + 'px;height:' + height + 'px"' + (ci!==''?' data-color-index="'+ci+'"':'') + '>';
@@ -357,8 +366,8 @@ function renderWeekly(){
 
     const dayPen=pendingRequests.filter(r=>r.date===ds).sort((a,b)=>toMin(a.startTime)-toMin(b.startTime));
     dayPen.forEach(r=>{
-      const top=(toMin(r.startTime)-toMin(fs))/30*CELL_H;
-      const height=(toMin(r.endTime)-toMin(r.startTime))/30*CELL_H;
+      const top=(toMin(r.startTime)-toMin(fs))/60*CELL_H;
+      const height=(toMin(r.endTime)-toMin(r.startTime))/60*CELL_H;
       h+='<div class="cal-block pending-block" style="top:' + top + 'px;height:' + height + 'px">';
       h+='<span class="cb-time">' + esc(r.startTime) + '–' + esc(r.endTime) + '</span>';
       h+='<span class="cb-label">Talep Edildi</span>';
@@ -392,12 +401,12 @@ function renderMonthly(){
     const click=cur&&!sun&&sched?('onclick="goWeek(new Date(' + dt.getFullYear() + ',' + dt.getMonth() + ',' + dt.getDate() + '))"'):'';
     h+='<div class="' + cls + '" ' + click + '><div class="day-num">' + dt.getDate() + '</div>';
     if(cur&&sched){
-      const totalSlots=Math.floor((toMin(sched.end)-toMin(sched.start))/30);
+      const totalSlots=Math.floor((toMin(sched.end)-toMin(sched.start))/60);
       let coveredSlots=0;
-      dayBlks.forEach(b=>{coveredSlots+=Math.floor((toMin(b.endTime)-toMin(b.startTime))/30);});
-      const avail=totalSlots-coveredSlots;
+      dayBlks.forEach(b=>{coveredSlots+=Math.floor((toMin(b.endTime)-toMin(b.startTime))/60);});
+      const avail=Math.max(0, totalSlots-coveredSlots);
       h+='<div class="slot-indicators">';
-      if(avail>0)h+='<div class="slot-indicator has-available">● ' + Math.ceil(avail/3) + ' seans müsait</div>';
+      if(avail>0)h+='<div class="slot-indicator has-available">● ' + avail + ' saat müsait</div>';
       if(dayBlks.length)h+='<div class="slot-indicator has-closed">● ' + dayBlks.length + ' kapalı</div>';
       if(dayPen.length)h+='<div class="slot-indicator has-pending">● ' + dayPen.length + ' talep</div>';
       h+='</div>';
@@ -502,7 +511,7 @@ function finalizeSel() {
   const date = sel[0].dataset.date;
   const st = sel[0].dataset.time;
   const last = sel[sel.length - 1].dataset.time;
-  const en = toTime(toMin(last) + 30);
+  const en = toTime(toMin(last) + 60);
   dragCol = null;
   dragStart = null;
   dragEnd = null;

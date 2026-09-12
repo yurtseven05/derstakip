@@ -94,7 +94,7 @@ const DEFAULT_CONFIG = {
     5: { start: '19:00', end: '22:00' },
     6: { start: '09:00', end: '22:00' }
   },
-  defaultDuration: 90
+  defaultDuration: 60
 };
 
 // Helpers & Sanitization
