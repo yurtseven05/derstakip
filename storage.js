@@ -1,4 +1,4 @@
-﻿const fs = require('fs');
+const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { MongoClient } = require('mongodb');
@@ -15,11 +15,12 @@ const BACKUPS_DIR = path.join(DATA_DIR, 'backups');
 const DEFAULT_CONFIG = {
   adminPassword: process.env.ADMIN_PASSWORD || 'admin123',
   schedule: {
-    1: { start: '19:00', end: '22:00' },
+    0: { start: '09:00', end: '15:00' },
+    1: { start: '17:00', end: '22:00' },
     2: { start: '17:00', end: '22:00' },
     3: { start: '17:00', end: '22:00' },
     4: { start: '17:00', end: '22:00' },
-    5: { start: '19:00', end: '22:00' },
+    5: { start: '17:00', end: '22:00' },
     6: { start: '09:00', end: '22:00' }
   },
   defaultDuration: 60
@@ -154,6 +155,12 @@ const storage = {
 
         if (mConfig && mConfig.data && mConfig.data.schedule) {
           memoryStore.config = mConfig.data;
+          if (!memoryStore.config.schedule['0'] || memoryStore.config.schedule['1']?.start === '19:00') {
+            memoryStore.config.schedule['0'] = { start: '09:00', end: '15:00' };
+            memoryStore.config.schedule['1'] = { start: '17:00', end: '22:00' };
+            memoryStore.config.schedule['5'] = { start: '17:00', end: '22:00' };
+            syncToMongo('config', memoryStore.config);
+          }
           writeJSONAtomic(CONFIG_FILE, memoryStore.config);
         } else {
           syncToMongo('config', memoryStore.config);

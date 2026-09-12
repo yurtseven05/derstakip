@@ -735,8 +735,21 @@ function renderWeekly() {
   slots.forEach(s=>h+=`<div class="cal-time" style="height:${CELL_H}px">${s}</div>`);
   h+='</div>';
 
+  const firstSlot=slots[0];
+  const weekdayOffEnd = '17:00';
+  if (toMin(weekdayOffEnd) > toMin(firstSlot)) {
+    const top = 0;
+    const height = (toMin(weekdayOffEnd) - toMin(firstSlot)) / 30 * CELL_H;
+    h += `<div class="cal-weekday-banner" style="top:${top}px;height:${height}px;">` +
+         `<span class="cb-time">${firstSlot} – ${weekdayOffEnd}</span>` +
+         `<span class="cb-label">Haftaiçi 17:00'ye Kadar Müsait Değil</span>` +
+         `<span class="cb-sub">(Dersler 17:00'de başlamaktadır)</span>` +
+         `</div>`;
+  }
+
   days.forEach(d=>{
     const ds=fmtDate(d), dow=d.getDay();
+    const isWeekday = (dow >= 1 && dow <= 5);
     h+=`<div class="cal-col" data-date="${ds}">`;
     slots.forEach(s=>{
       const off=isOff(s,dow);
@@ -744,12 +757,14 @@ function renderWeekly() {
     });
 
     // Contiguous Off-Hours Blocks (tek bir blok halinde Müsait Değil)
+    // Hafta içi 09:00 - 17:00 aralığı yukarıdaki ortak banner ile gösterilir
     const offRanges = [];
     let curOffStart = null;
     let prevOffSlot = null;
 
     slots.forEach(s => {
       const off = isOff(s, dow);
+      if (isWeekday && toMin(s) < toMin(weekdayOffEnd)) return;
       if (off) {
         if (!curOffStart) curOffStart = s;
         prevOffSlot = s;
@@ -765,15 +780,13 @@ function renderWeekly() {
       offRanges.push({ start: curOffStart, end: toTime(toMin(prevOffSlot) + 30) });
     }
 
-    const firstSlot=slots[0];
     offRanges.forEach(rng => {
       const sMin = toMin(rng.start);
       const eMin = toMin(rng.end);
       const top = (sMin - toMin(firstSlot)) / 30 * CELL_H;
       const height = (eMin - sMin) / 30 * CELL_H;
       const dur = eMin - sMin;
-      const isSunday = (dow === 0);
-      const labelText = isSunday ? 'Pazar Kapalı' : 'Müsait Değil';
+      const labelText = 'Müsait Değil';
 
       if (dur <= 30) {
         h += `<div class="cal-block off-block compact" style="top:${top}px;height:${height}px">` +
@@ -921,7 +934,7 @@ function renderMonthly() {
     const ds=fmtDate(dt), dayBlks=blocks.filter(b=>b.date===ds);
     const dayPen=pendingReqs.filter(r=>r.date===ds);
     const sched=SCHEDULE[dt.getDay()];
-    const click=cur&&!sun&&sched?`onclick="goWeek(new Date(${dt.getFullYear()},${dt.getMonth()},${dt.getDate()}))"`:''
+    const click=cur&&sched?`onclick="goWeek(new Date(${dt.getFullYear()},${dt.getMonth()},${dt.getDate()}))"`:''
     h+=`<div class="${cls}" ${click}><div class="day-num">${dt.getDate()}</div>`;
     if(cur&&sched){
       h+='<div class="slot-indicators">';

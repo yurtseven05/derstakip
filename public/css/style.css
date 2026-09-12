@@ -446,7 +446,75 @@ body::before {
   box-shadow: 0 0 12px var(--accent-primary-glow);
 }
 .cal-day-hdr.sunday {
-  opacity: 0.35;
+  opacity: 1;
+}
+
+.cal-weekday-banner {
+  grid-column: 2 / 7;
+  grid-row: 1;
+  position: absolute;
+  top: 0;
+  left: 84px;
+  width: calc((100% - 80px) * 5 / 7 - 8px);
+  border-radius: var(--radius-md);
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(85, 38, 45, 0.05),
+    rgba(85, 38, 45, 0.05) 8px,
+    rgba(85, 38, 45, 0.11) 8px,
+    rgba(85, 38, 45, 0.11) 16px
+  );
+  border: 1.5px dashed rgba(85, 38, 45, 0.28);
+  color: var(--accent-brown);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+  pointer-events: none;
+  box-shadow: 0 2px 10px rgba(85, 38, 45, 0.04);
+  text-align: center;
+  padding: 16px 20px;
+  user-select: none;
+}
+.cal-weekday-banner .cb-time {
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: var(--accent-brown);
+  opacity: 0.85;
+  letter-spacing: 0.03em;
+}
+.cal-weekday-banner .cb-label {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--accent-brown);
+  opacity: 0.95;
+  letter-spacing: 0.02em;
+  margin-top: 4px;
+}
+.cal-weekday-banner .cb-sub {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+  margin-top: 4px;
+  opacity: 0.85;
+}
+
+@media (max-width: 768px) {
+  .cal-weekday-banner {
+    left: 54px;
+    width: calc((100% - 50px) * 5 / 7 - 8px);
+    padding: 10px 8px;
+  }
+  .cal-weekday-banner .cb-time {
+    font-size: 0.78rem;
+  }
+  .cal-weekday-banner .cb-label {
+    font-size: 0.85rem;
+  }
+  .cal-weekday-banner .cb-sub {
+    font-size: 0.72rem;
+  }
 }
 
 .cal-body {
@@ -791,8 +859,7 @@ body::before {
 }
 
 .month-day.sunday {
-  opacity: 0.35;
-  cursor: not-allowed;
+  opacity: 1;
 }
 
 .month-day .slot-indicators {
