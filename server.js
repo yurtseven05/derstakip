@@ -87,11 +87,11 @@ const CONFIG_FILE = path.join(DATA_DIR, 'config.json');
 const DEFAULT_CONFIG = {
   adminPassword: process.env.ADMIN_PASSWORD || 'admin123',
   schedule: {
-    1: { start: '17:00', end: '22:00' },
+    1: { start: '19:00', end: '22:00' },
     2: { start: '17:00', end: '22:00' },
     3: { start: '17:00', end: '22:00' },
     4: { start: '17:00', end: '22:00' },
-    5: { start: '17:00', end: '22:00' },
+    5: { start: '19:00', end: '22:00' },
     6: { start: '09:00', end: '22:00' }
   },
   defaultDuration: 90

@@ -22,8 +22,19 @@ function weekStart(d) { const x=new Date(d); const day=x.getDay(); x.setDate(x.g
 function esc(t) { const d=document.createElement('div'); d.textContent=t; return d.innerHTML; }
 
 function getAllSlots() {
-  const slots=[];
-  for (let m=480; m<1380; m+=30) slots.push(toTime(m)); // 08:00 to 23:00
+  let minM = 1440, maxM = 0;
+  if (SCHEDULE && typeof SCHEDULE === 'object') {
+    Object.values(SCHEDULE).forEach(s => {
+      if (s && s.start && s.end) {
+        minM = Math.min(minM, toMin(s.start));
+        maxM = Math.max(maxM, toMin(s.end));
+      }
+    });
+  }
+  if (minM >= maxM || minM === 1440) { minM = 1020; maxM = 1320; }
+  maxM = Math.min(maxM, 1320); // 22:00'den sonra asla ders yok
+  const slots = [];
+  for (let m = minM; m < maxM; m += 30) slots.push(toTime(m));
   return slots;
 }
 
