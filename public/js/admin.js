@@ -50,6 +50,16 @@ function fmtDateTR(dateStr) {
   return `${d} ${MONTHS[m-1]} ${y}`;
 }
 
+function formatPhoneTR(raw) {
+  const c = (raw || '').replace(/\D/g, '');
+  if (!c) return '';
+  const s = c.startsWith('0') ? c.slice(1) : (c.startsWith('90') ? c.slice(2) : c);
+  if (s.length === 10) {
+    return `0${s.slice(0, 3)} ${s.slice(3, 6)} ${s.slice(6, 8)} ${s.slice(8, 10)}`;
+  }
+  return c.startsWith('0') ? c : '0' + c;
+}
+
 // ---- Init ----
 document.addEventListener('DOMContentLoaded', () => {
   const saved = sessionStorage.getItem('adminPassword');
@@ -408,37 +418,92 @@ function renderAnalytics(data) {
     h+='</tbody></table></div>';
   } else h+='<p style="color:var(--text-muted);font-size:0.85rem;">Henüz veri yok.</p>';
 
-  const students = Object.entries(data.students).sort((a,b)=>b[1].hours-a[1].hours);
-  h+=`<h3 style="margin:24px 0 12px;font-size:1.1rem;">👤 Öğrenci & Takip Kodları</h3>`;
-  if(students.length){
-    h+='<div class="analytics-table"><table><thead><tr><th>Öğrenci / Etiket</th><th>Takip Kodu</th><th>Ders Sayısı</th><th>Toplam Saat</th><th style="text-align:right;">İşlem</th></tr></thead><tbody>';
-    students.forEach(([name, val])=>{
-      const codeBadge = val.studentCode ? `<span style="background:var(--accent-primary);color:#fff;padding:2px 8px;border-radius:6px;font-weight:700;font-size:0.8rem;">${esc(val.studentCode)}</span>` : '<span style="color:var(--text-muted)">—</span>';
-      const qTarget = val.studentCode || name;
-      h+=`<tr>
-        <td><strong>${esc(name)}</strong></td>
+  // Group blocks by student for this month and overall
+  const now = new Date();
+  const currentYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const currentMonthTitle = `${MONTHS[now.getMonth()]} ${now.getFullYear()}`;
+
+  const thisMonthMap = {};
+  const allTimeMap = {};
+
+  blocks.forEach(b => {
+    const sMin = toMin(b.startTime);
+    const eMin = toMin(b.endTime);
+    const durHours = (eMin - sMin) / 60;
+    const bCode = (b.studentCode || '').trim().toUpperCase();
+    const bLabel = (b.label || '').trim();
+
+    if (!bCode && !bLabel) return;
+
+    // Find student profile from savedStudents
+    const profile = savedStudents.find(s => 
+      (bCode && s.code && s.code.toUpperCase() === bCode) ||
+      (bLabel && s.name && s.name.toLowerCase() === bLabel.toLowerCase())
+    );
+
+    const code = profile?.code || bCode;
+    const name = profile?.name || bLabel || code;
+    const key = (code || name).toUpperCase();
+
+    // All time stats
+    if (!allTimeMap[key]) {
+      allTimeMap[key] = { key, code, name, count: 0, hours: 0 };
+    }
+    allTimeMap[key].count++;
+    allTimeMap[key].hours += durHours;
+
+    // This month stats
+    if (b.date && b.date.startsWith(currentYM)) {
+      if (!thisMonthMap[key]) {
+        thisMonthMap[key] = { key, code, name, count: 0, hours: 0 };
+      }
+      thisMonthMap[key].count++;
+      thisMonthMap[key].hours += durHours;
+    }
+  });
+
+  const thisMonthList = Object.values(thisMonthMap).sort((a, b) => b.hours - a.hours);
+
+  h += `<h3 style="margin:28px 0 12px;font-size:1.1rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+    <span>📅 Bu Ayın Öğrenci Ders Dağılımı (${currentMonthTitle})</span>
+    <span style="font-size:0.82rem;font-weight:600;color:var(--accent-primary);background:rgba(93,138,78,0.12);padding:3px 10px;border-radius:12px;">${thisMonthList.length} Aktif Öğrenci</span>
+  </h3>`;
+
+  if (thisMonthList.length) {
+    h += `<div class="analytics-table"><table>
+      <thead>
+        <tr>
+          <th>Kod / Etiket</th>
+          <th>Öğrenci Adı Soyadı</th>
+          <th>Bu Ayki Ders</th>
+          <th>Bu Ayki Toplam Saat</th>
+          <th>Genel Toplam Saat</th>
+          <th style="text-align:right;">İşlem</th>
+        </tr>
+      </thead>
+      <tbody>`;
+
+    thisMonthList.forEach(item => {
+      const codeBadge = item.code ? `<span style="background:var(--accent-primary);color:#fff;padding:2px 8px;border-radius:6px;font-weight:700;font-size:0.8rem;">${esc(item.code)}</span>` : '<span style="color:var(--text-muted)">—</span>';
+      const overall = allTimeMap[item.key] || { count: item.count, hours: item.hours };
+      const qTarget = item.code || item.name;
+
+      h += `<tr>
         <td>${codeBadge}</td>
-        <td>${val.count} ders</td>
-        <td>${Math.round(val.hours*10)/10} saat</td>
+        <td><strong>${esc(item.name)}</strong></td>
+        <td><strong style="color:var(--accent-primary);">${item.count} ders</strong></td>
+        <td><strong>${Math.round(item.hours * 10) / 10} saat</strong></td>
+        <td><span style="color:var(--text-secondary);">${Math.round(overall.hours * 10) / 10} saat <small style="color:var(--text-muted);">(${overall.count} ders)</small></span></td>
         <td style="text-align:right;"><button class="student-action-btn analysis" onclick="openStudentAnalysisModal('${esc(qTarget)}')">📊 Analiz</button></td>
       </tr>`;
     });
-    h+='</tbody></table></div>';
-  } else h+='<p style="color:var(--text-muted);font-size:0.85rem;">Etiketli ders bloğu yok.</p>';
 
-  if(data.studentCodes && data.studentCodes.length) {
-    h+=`<h3 style="margin:24px 0 12px;font-size:1.1rem;">🔑 Tanımlı Veli / Öğrenci Kodları Özeti</h3>`;
-    h+='<div class="analytics-table"><table><thead><tr><th>Öğrenci Kodu</th><th>Eşleşen Öğrenci</th><th>Toplam Ders</th><th>Toplam Saat</th><th style="text-align:right;">İşlem</th></tr></thead><tbody>';
-    data.studentCodes.forEach(sc => {
-      h+=`<tr>
-        <td><strong style="color:var(--accent-primary);font-size:1rem;">${esc(sc.code)}</strong></td>
-        <td>${esc(sc.studentName || '—')}</td>
-        <td>${sc.count} ders</td>
-        <td>${Math.round(sc.hours*10)/10} saat</td>
-        <td style="text-align:right;"><button class="student-action-btn analysis" onclick="openStudentAnalysisModal('${esc(sc.code)}')">📊 Analiz</button></td>
-      </tr>`;
-    });
-    h+='</tbody></table></div>';
+    h += `</tbody></table></div>`;
+  } else {
+    h += `<div style="background:var(--bg-card);border:1px dashed var(--border-glass);border-radius:var(--radius-md);padding:20px;text-align:center;color:var(--text-secondary);font-size:0.9rem;margin-bottom:24px;">
+      <span style="font-size:1.6rem;display:block;margin-bottom:6px;">📅</span>
+      ${currentMonthTitle} ayında henüz tamamlanmış veya planlanmış ders bulunmuyor.
+    </div>`;
   }
 
   c.innerHTML=h;
@@ -1074,7 +1139,7 @@ function renderStudentsDirectory(filterQuery = '') {
         <th>Öğrenci Adı Soyadı</th>
         <th>Sınıf / Düzey</th>
         <th>Veli İsim Soyisim</th>
-        <th>İletişim & Hızlı İşlem</th>
+        <th>Veli İletişim (Tel & WP)</th>
         <th>Toplam Ders</th>
         <th style="text-align:right;">İşlem</th>
       </tr>
@@ -1092,11 +1157,14 @@ function renderStudentsDirectory(filterQuery = '') {
     let phoneActions = '<span style="color:var(--text-muted)">—</span>';
     if (cleanPhone) {
       const waNumber = cleanPhone.startsWith('90') ? cleanPhone : (cleanPhone.startsWith('0') ? '9' + cleanPhone : '90' + cleanPhone);
+      const displayPhone = formatPhoneTR(cleanPhone);
       phoneActions = `
-        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-          <strong>0${cleanPhone.slice(-10)}</strong>
-          <a href="https://wa.me/${waNumber}" target="_blank" class="student-action-btn wa" title="WhatsApp Mesajı Gönder">💬 WA</a>
-          <a href="tel:${cleanPhone}" class="student-action-btn call" title="Telefonla Ara">📞 Ara</a>
+        <div style="display:inline-flex;align-items:center;gap:8px;white-space:nowrap;">
+          <span style="font-weight:700;font-size:0.86rem;letter-spacing:0.3px;">${esc(displayPhone)}</span>
+          <div style="display:inline-flex;align-items:center;gap:4px;flex-shrink:0;">
+            <a href="https://wa.me/${waNumber}" target="_blank" class="student-action-btn wa" title="WhatsApp Mesajı Gönder" style="padding:4px 8px;font-size:0.78rem;white-space:nowrap;">💬 WP</a>
+            <a href="tel:${cleanPhone}" class="student-action-btn call" title="Telefonla Ara" style="padding:4px 8px;font-size:0.78rem;white-space:nowrap;">📞 Ara</a>
+          </div>
         </div>
       `;
     }

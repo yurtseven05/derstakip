@@ -1490,7 +1490,7 @@ body::before {
     margin-bottom: var(--spacing-md);
   }
   .analytics-table table {
-    min-width: 520px;
+    min-width: 580px;
   }
   .analytics-table th, .analytics-table td {
     padding: 10px 12px;
@@ -1775,6 +1775,7 @@ body::before {
   gap: 4px;
   text-decoration: none;
   transition: all var(--transition-fast);
+  white-space: nowrap;
 }
 .student-action-btn.edit {
   background: var(--accent-green-bg);
