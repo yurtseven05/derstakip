@@ -6,58 +6,66 @@
 
 /* ---- CSS Custom Properties ---- */
 :root {
-  /* Fresh, Light Pale Lemon & Deep Antwerp Blue Theme */
-  --bg-primary: #FAFAD0;
-  --bg-secondary: #F6F6C8;
-  --bg-tertiary: #EDEDB8;
-  --bg-card: #FCFCD8;
-  --bg-card-hover: #F6F6C8;
-  --bg-elevated: #ECECAE;
-  --bg-glass: rgba(0, 43, 71, 0.04);
-  --border-glass: rgba(0, 43, 71, 0.1);
-  --border-active: rgba(0, 43, 71, 0.25);
+  /* Vibrant & Modern Palette:
+     #49083A - Derin Mürdüm / Deep Plum (Metin, Başlıklar, Çerçeveler)
+     #FFA6EC - Tatlı Pastel Pembe / Soft Pink (Ferah Arka Plan Teması)
+     #CA1C86 - Canlı Fuşya-Gül / Vibrant Berry-Rose (İkincil Vurgu, Rozetler, Kapalı Bloklar)
+     #FA4600 - Canlı Turuncu / Electric Orange (Harekete Geç / CTA / Butonlar)
+  */
+  --bg-primary: #FFF2FB;
+  --bg-secondary: #FFE5F7;
+  --bg-tertiary: #FFD4F3;
+  --bg-card: #FFFFFF;
+  --bg-card-hover: #FFF5FC;
+  --bg-elevated: #FFE0F6;
+  --bg-glass: rgba(73, 8, 58, 0.04);
+  --border-glass: rgba(73, 8, 58, 0.12);
+  --border-active: rgba(202, 28, 134, 0.35);
 
-  --text-primary: #002B47;
-  --text-secondary: #0c3d5e;
-  --text-muted: #4d6d82;
-  --text-gold: #3B7A57;
-  --text-cream: #002B47;
+  --text-primary: #49083A;
+  --text-secondary: #6B1B57;
+  --text-muted: #8F4A7B;
+  --text-gold: #FA4600;
+  --text-cream: #FFF2FB;
 
-  /* Accent Colors — Cobalt Green */
-  --accent-primary: #138A4D;
-  --accent-primary-glow: rgba(19, 138, 77, 0.2);
+  /* Primary Accent & CTA: Electric Orange #FA4600 */
+  --accent-primary: #FA4600;
+  --accent-primary-glow: rgba(250, 70, 0, 0.25);
 
-  /* Benzol Green for Closed Slots and secondary accents */
-  --accent-brown: #3B7A57;
-  --accent-brown-glow: rgba(59, 122, 87, 0.25);
-  --accent-brown-bg: rgba(59, 122, 87, 0.1);
+  /* Secondary Accent / Closed Slots / Badges: Vibrant Berry #CA1C86 */
+  --accent-brown: #CA1C86;
+  --accent-brown-glow: rgba(202, 28, 134, 0.25);
+  --accent-brown-bg: rgba(202, 28, 134, 0.1);
 
-  --accent-green: #3B7A57;
-  --accent-green-glow: rgba(59, 122, 87, 0.2);
-  --accent-green-bg: rgba(59, 122, 87, 0.08);
-  --accent-red: #A62B2B;
-  --accent-red-glow: rgba(166, 43, 43, 0.2);
-  --accent-red-bg: rgba(166, 43, 43, 0.08);
-  --accent-amber: #E2A93B;
-  --accent-amber-glow: rgba(226, 169, 59, 0.2);
-  --accent-amber-bg: rgba(226, 169, 59, 0.08);
+  /* Deep Plum Accents #49083A */
+  --accent-green: #CA1C86;
+  --accent-green-glow: rgba(202, 28, 134, 0.2);
+  --accent-green-bg: rgba(202, 28, 134, 0.08);
 
-  /* Student Color Palette — 10 distinct warm hues */
-  --student-0: #138A4D; --student-0-bg: rgba(19, 138, 77, 0.14);   /* Cobalt Green (default) */
-  --student-1: #2e8b7a; --student-1-bg: rgba(46, 139, 122, 0.14);   /* Teal */
-  --student-2: #8b3a62; --student-2-bg: rgba(139, 58, 98, 0.14);    /* Rose */
-  --student-3: #4a6e8b; --student-3-bg: rgba(74, 110, 139, 0.14);   /* Steel Blue */
-  --student-4: #8b5e3c; --student-4-bg: rgba(139, 94, 60, 0.14);    /* Copper */
-  --student-5: #5a7a3c; --student-5-bg: rgba(90, 122, 60, 0.14);    /* Olive */
-  --student-6: #7a3c8b; --student-6-bg: rgba(122, 60, 139, 0.14);   /* Plum */
-  --student-7: #8b7a3c; --student-7-bg: rgba(139, 122, 60, 0.14);   /* Ochre */
-  --student-8: #3c6e8b; --student-8-bg: rgba(60, 110, 139, 0.14);   /* Cerulean */
-  --student-9: #8b3c3c; --student-9-bg: rgba(139, 60, 60, 0.14);    /* Crimson */
+  --accent-red: #D61B3C;
+  --accent-red-glow: rgba(214, 27, 60, 0.2);
+  --accent-red-bg: rgba(214, 27, 60, 0.08);
 
-  /* Gradients — Cobalt Green / Benzol Green */
-  --gradient-hero: linear-gradient(135deg, #138A4D, #3B7A57);
-  --gradient-card: linear-gradient(135deg, rgba(59, 122, 87, 0.06) 0%, rgba(19, 138, 77, 0.02) 100%);
-  --gradient-warm: linear-gradient(135deg, #3B7A57, #138A4D);
+  --accent-amber: #FA4600;
+  --accent-amber-glow: rgba(250, 70, 0, 0.25);
+  --accent-amber-bg: rgba(250, 70, 0, 0.08);
+
+  /* Student Color Palette — Harmonious vibrant hues */
+  --student-0: #FA4600; --student-0-bg: rgba(250, 70, 0, 0.14);   /* Electric Orange */
+  --student-1: #CA1C86; --student-1-bg: rgba(202, 28, 134, 0.14);  /* Vibrant Berry */
+  --student-2: #49083A; --student-2-bg: rgba(73, 8, 58, 0.12);    /* Deep Plum */
+  --student-3: #9C1565; --student-3-bg: rgba(156, 21, 101, 0.14);  /* Dark Rose */
+  --student-4: #E63B00; --student-4-bg: rgba(230, 59, 0, 0.14);   /* Bright Flame */
+  --student-5: #6B1B57; --student-5-bg: rgba(107, 27, 87, 0.14);   /* Muted Plum */
+  --student-6: #B51275; --student-6-bg: rgba(181, 18, 117, 0.14);  /* Magenta */
+  --student-7: #FF6622; --student-7-bg: rgba(255, 102, 34, 0.14);  /* Tangerine */
+  --student-8: #800D58; --student-8-bg: rgba(128, 13, 88, 0.14);   /* Bordeaux */
+  --student-9: #D42B00; --student-9-bg: rgba(212, 43, 0, 0.14);   /* Vermillion */
+
+  /* Gradients */
+  --gradient-hero: linear-gradient(135deg, #FA4600 0%, #CA1C86 100%);
+  --gradient-card: linear-gradient(135deg, rgba(202, 28, 134, 0.06) 0%, rgba(250, 70, 0, 0.03) 100%);
+  --gradient-warm: linear-gradient(135deg, #CA1C86, #FA4600);
 
   /* Spacing */
   --spacing-xs: 4px;
@@ -111,8 +119,9 @@ body {
   min-height: 100vh;
   overflow-x: hidden;
   background-image:
-    radial-gradient(ellipse at 30% 0%, rgba(0, 43, 71, 0.04) 0%, transparent 50%),
-    radial-gradient(ellipse at 70% 100%, rgba(59, 122, 87, 0.03) 0%, transparent 50%);
+    radial-gradient(ellipse at 20% 0%, rgba(255, 166, 236, 0.45) 0%, transparent 60%),
+    radial-gradient(ellipse at 85% 100%, rgba(202, 28, 134, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 90% 10%, rgba(250, 70, 0, 0.05) 0%, transparent 40%);
 }
 
 /* Manuscript paper texture overlay */
@@ -120,7 +129,7 @@ body::before {
   content: '';
   position: fixed;
   inset: 0;
-  background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23c49a3c' fill-opacity='0.02'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%2349083A' fill-opacity='0.015'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
   pointer-events: none;
   z-index: 0;
 }
@@ -141,7 +150,7 @@ body::before {
   z-index: 100;
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
-  background: rgba(250, 250, 208, 0.85);
+  background: rgba(255, 242, 251, 0.88);
   border-bottom: 1px solid var(--border-glass);
   padding: var(--spacing-md) 0;
 }
@@ -459,23 +468,23 @@ body::before {
   font-size: 0.8rem;
   font-weight: 500;
   color: var(--text-muted);
-  border-bottom: 1px solid rgba(0, 43, 71, 0.1);
+  border-bottom: 1px solid rgba(73, 8, 58, 0.08);
 }
 .cal-col {
   position: relative;
-  border-right: 1px solid rgba(0, 43, 71, 0.12);
+  border-right: 1px solid rgba(73, 8, 58, 0.1);
 }
 .cal-cell {
-  border-bottom: 1px solid rgba(0, 43, 71, 0.1);
+  border-bottom: 1px solid rgba(73, 8, 58, 0.08);
   transition: all var(--transition-fast);
 }
 .cal-cell.off {
   background: repeating-linear-gradient(
     -45deg,
-    rgba(0, 43, 71, 0.18),
-    rgba(0, 43, 71, 0.18) 6px,
-    rgba(0, 43, 71, 0.28) 6px,
-    rgba(0, 43, 71, 0.28) 12px
+    rgba(73, 8, 58, 0.22),
+    rgba(73, 8, 58, 0.22) 6px,
+    rgba(73, 8, 58, 0.35) 6px,
+    rgba(73, 8, 58, 0.35) 12px
   );
   cursor: not-allowed;
   opacity: 1;
@@ -490,10 +499,10 @@ body::before {
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: inset 0 0 0 1px rgba(19, 138, 77, 0.2);
+  box-shadow: inset 0 0 0 1px rgba(202, 28, 134, 0.22);
 }
 .cal-cell.avail:hover {
-  background: rgba(19, 138, 77, 0.18);
+  background: rgba(255, 166, 236, 0.28);
   box-shadow: inset 0 0 0 1.5px var(--accent-primary);
 }
 .cal-cell.avail .cell-lbl {
@@ -501,7 +510,7 @@ body::before {
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.02em;
-  opacity: 0.75;
+  opacity: 0.85;
   transition: opacity var(--transition-fast), transform var(--transition-fast);
 }
 .cal-cell.avail:hover .cell-lbl {
@@ -514,7 +523,7 @@ body::before {
   cursor: cell;
 }
 .cal-cell.selecting {
-  background: rgba(19, 138, 77, 0.35) !important;
+  background: rgba(250, 70, 0, 0.3) !important;
   border-left: 2px solid var(--accent-primary) !important;
   border-right: 2px solid var(--accent-primary) !important;
 }
@@ -2183,13 +2192,13 @@ body::before {
   bottom: 0;
   left: 0;
   right: 0;
-  background: rgba(250, 250, 208, 0.95);
-  border-top: 1px solid rgba(0, 43, 71, 0.1);
+  background: rgba(255, 242, 251, 0.95);
+  border-top: 1px solid rgba(73, 8, 58, 0.1);
   padding: 10px 16px;
   z-index: 90;
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  box-shadow: 0 -4px 16px rgba(0, 43, 71, 0.08);
+  box-shadow: 0 -4px 16px rgba(73, 8, 58, 0.08);
 }
 @media (max-width: 768px) {
   .mobile-quick-book-bar {
@@ -2202,6 +2211,6 @@ body::before {
     padding: 8px 18px;
     border-radius: var(--radius-full);
     font-size: 0.85rem;
-    box-shadow: 0 2px 8px rgba(19, 138, 77, 0.3);
+    box-shadow: 0 2px 8px rgba(250, 70, 0, 0.3);
   }
 }
